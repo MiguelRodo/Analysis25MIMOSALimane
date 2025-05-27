@@ -1,0 +1,11 @@
+Package: Analysis25MIMOSALimane
+Title: {{ Title }}
+Version: 0.0.1
+Authors@R (parsed):
+    * Jo Doe <jodoe@dom.ain> [aut, cre]
+Maintainer: {{ Maintainer }}
+Description: {{ Description }}
+License: {{ License }}
+URL: {{ URL }}
+BugReports: {{ BugReports }}
+Encoding: UTF-8
