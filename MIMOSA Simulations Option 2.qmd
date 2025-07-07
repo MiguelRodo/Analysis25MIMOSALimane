@@ -1,0 +1,147 @@
+---
+title: "Untitled m"
+format: pdf
+editor: visual
+---
+
+```{r,message=FALSE,warning=FALSE}
+#loading MIMOSA
+
+install.packages("devtools") #install devtools package
+library(devtools) #load it
+install_github("RGLab/MIMOSA",ref="trunk") 
+library(ggplot2)
+library(MIMOSA) #load MIMOSA
+```
+
+Parameters
+
+stimulated will react the same whether it is responder or not.Unstimulated reacts different when it is a reponder vs non-responder.
+
+```{r}
+set.seed(2025)
+
+# Simulation parameters
+n_samples <- 200         # Number of participants
+N <- 10000               # Number of cells measured per sample
+w <- 0.5                 # Probability of being a responder
+
+# Concentration and means
+f<-1#inflation factor
+mu<-0.05
+mu_s<-mu*(1+f)
+mu_s <- 0.10             # Stimulated mean (fixed for all) used f=1 
+mu_u_R <- 0.01           # Unstim mean for responders 
+mu_u_NR <- 0.05          # Unstim mean for non-responders 
+c <- 1                   # Concentration (same for all)
+
+# Convert means to (α, β) for beta distribution
+a_s <- c * mu_s
+b_s <- c * (1 - mu_s)
+
+a_u_R <- c * mu_u_R
+b_u_R <- c * (1 - mu_u_R)
+
+
+a_u_NR <- c * mu_u_NR
+b_u_NR <- c * (1 - mu_u_NR)
+
+# Storage vectors
+responder_status <- rbinom(n_samples, 1, w)# who is a responder
+p_u <- rep(NA, n_samples)
+p_s <- rep(NA, n_samples)
+n_s <- rep(NA, n_samples) #no of functional cells
+n_u <- rep(NA, n_samples) #no of functional cells
+p_hat_s <-  rep(NA, n_samples)
+p_hat_u <- rep(NA, n_samples)
+p_posterior_s <- rep(NA, n_samples)
+p_posterior_u <- rep(NA, n_samples)
+# Simulate data for varying no of samples
+for (i in 1:n_samples) {
+  # Stimulated condition 
+  p_s[i] <- rbeta(1, a_s, b_s)
+  n_s[i] <- rbinom(1, N, p_s[i])
+  p_hat_s[i] <- n_s[i] / N
+  p_posterior_s[i] <- (n_s[i] + a_s) / (N + a_s + b_s)
+
+  # Unstimulated condition — DIFFERENT depending on responder status
+  if (responder_status[i] == 1) {
+    p_u[i] <- rbeta(1, a_u_R, b_u_R)
+  } else {
+    p_u[i] <- rbeta(1, a_u_NR, b_u_NR)
+  }
+  n_u[i] <- rbinom(1, N, p_u[i])
+  p_hat_u[i] <- n_u[i] / N
+  p_posterior_u[i] <- (n_u[i] + (ifelse(responder_status[i] == 1, a_u_R, a_u_NR))) /(N + (ifelse(responder_status[i] == 1, a_u_R + b_u_R, a_u_NR + b_u_NR)))
+}
+
+```
+
+From here we need to format the data so that we can be able to fit MIMOSA
+
+```{r}
+# Combine the data
+stim_data <- data.frame(
+  SUBJECTID = paste0("Subject_", 1:n_samples),
+  CYTOKINE = "IL2",
+  TCELL = "CD4",
+  STIMULATION = "Stimulated",
+  CYTNUM = n_s,
+  NSUB = N - n_s,
+  RefTreat = "Treatment",
+  stringsAsFactors = FALSE
+)
+
+unstim_data <- data.frame(
+  SUBJECTID = paste0("Subject_", 1:n_samples),
+  CYTOKINE = "IL2",
+  TCELL = "CD4",
+  STIMULATION = "Unstimulated",
+  CYTNUM = n_u,
+  NSUB = N - n_u,
+  RefTreat = "Reference",
+  stringsAsFactors = FALSE
+)
+
+# Combine both into one long-format data frame
+sim_data <- rbind(unstim_data, stim_data)
+library(dplyr)
+
+
+prepare_for_mimosa <- function(sim_data) {
+    sim_data <- dplyr::mutate(sim_data,
+                              RefTreat = ifelse(STIMULATION == "Unstimulated", "Reference", "Treatment"))
+
+    aggregated <- dplyr::group_by(sim_data, SUBJECTID, CYTOKINE, TCELL, STIMULATION, RefTreat) %>%
+        dplyr::summarise(
+            NSUB = sum(NSUB),
+            CYTNUM = sum(CYTNUM),
+            .groups = "drop"
+        )
+
+    paired <- dplyr::group_by(aggregated, SUBJECTID, CYTOKINE, TCELL) %>%
+        dplyr::filter(all(c("Stimulated", "Unstimulated") %in% STIMULATION)) %>%
+        dplyr::ungroup() %>%
+        dplyr::mutate(REFERENCE = STIMULATION == "Unstimulated")
+
+    E <- ConstructMIMOSAExpressionSet(
+        paired,
+         reference = STIMULATION %in% "Unstimulated",
+        measure.columns = c("NSUB", "CYTNUM"),
+        .variables = c("SUBJECTID", "CYTOKINE", "TCELL")
+    )
+
+    return(E)
+}
+
+E <- prepare_for_mimosa(sim_data)
+
+fit <- MIMOSA(
+  NSUB + CYTNUM ~ SUBJECTID | CYTOKINE,
+  data = E,
+  subset = RefTreat == "Treatment" & CYTOKINE == "IL2",
+  ref = RefTreat == "Reference" & CYTOKINE == "IL2",
+  RT = FALSE
+)
+summary(fit)
+```
