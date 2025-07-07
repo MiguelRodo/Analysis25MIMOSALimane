@@ -1,0 +1,21 @@
+---
+title: "MIMOSA Posterior Probs"
+format: pdf
+editor: visual
+---
+
+This was when I was loading the fitted model and extracted the probabilities.
+
+```{r}
+data<-read.delim("~/STA4006W 2025/Latex and Research/file69cc44ee5d77.datP")
+z_mat <- data[, 1:200]
+posterior_probs <- colMeans(z_mat) 
+responder_class <- posterior_probs > 0.95 #use 95% since thats what we use for hypothesis testing
+true_class <- posterior_probs > 0.5  
+
+# classification table
+(classification_table <- table(responder_class, true_class))
+ps_mat <- data[, 201:400] #probabilities for stimulated
+pu_mat <- data[, 401:600] #probailities for unstimulated.
+```
+
