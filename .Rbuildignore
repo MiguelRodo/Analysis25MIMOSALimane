@@ -1,3 +1,5 @@
+^renv$
+^renv\.lock$
 ^README\.Rmd$
 # Start of projr section: do not edit by hand (update with projr_ignore_auto())
 ^_raw_data/
