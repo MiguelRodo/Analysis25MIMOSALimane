@@ -7,11 +7,12 @@ editor: visual
 ```{r,message=FALSE,warning=FALSE}
 #loading MIMOSA
 
-install.packages("devtools") #install devtools package
+#install.packages("devtools") #install devtools package
 library(devtools) #load it
-install_github("RGLab/MIMOSA",ref="trunk") 
+#install_github("RGLab/MIMOSA",ref="trunk") 
 library(ggplot2)
 library(MIMOSA) #load MIMOSA
+library(dplyr)
 ```
 
 Parameters
@@ -30,9 +31,10 @@ c <- c(1,2,10)[1]                   # Concentration (same for all)
 # Concentration and means
 mu_u_NR<-0.05
 mu_u_R <- 0.01           # Unstim mean for responders 
-source("C:/Users/liman/OneDrive - University of Cape Town/Documents/STA4006W 2025/Latex and Research/Analysis25MIMOSALimane/R/calculated_params.R")
-source("C:/Users/liman/OneDrive - University of Cape Town/Documents/STA4006W 2025/Latex and Research/Analysis25MIMOSALimane/R/get_sim_data.R")
-source("C:/Users/liman/OneDrive - University of Cape Town/Documents/STA4006W 2025/Latex and Research/Analysis25MIMOSALimane/R/prepare_for_mimosa.R")
+source("calculated_params.R")
+source("get_sim_data.R")
+source("prepare_for_mimosa.R")
+source("fit_MIMOSA.R")
 
 # Calculate distribution parameters
 params <- calculated_params(mu_u_NR, mu_u_R, f, c)
@@ -68,14 +70,7 @@ unstim_data <- data.frame(
 
 # Combine both into one long-format data frame
 sim_data <- rbind(unstim_data, stim_data)
-library(dplyr)
 E <- prepare_for_mimosa(sim_data)
-fit <- MIMOSA(
-  NSUB + CYTNUM ~ SUBJECTID | CYTOKINE,
-  data = E,
-  subset = RefTreat == "Treatment" & CYTOKINE == "IL2",
-  ref = RefTreat == "Reference" & CYTOKINE == "IL2",
-  RT = FALSE
-)
-summary(fit)
+fit <- fit_MIMOSA(sim_data)
+
 ```
