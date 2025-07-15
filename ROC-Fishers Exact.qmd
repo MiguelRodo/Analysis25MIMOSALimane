@@ -1,0 +1,50 @@
+---
+title: "ROC and Fishers Exact Test Result "
+format: html
+editor: visual
+---
+
+
+```{r}
+ROC_results <- function(fit, n_samples) {
+  # Single iteration version (i = 1)
+  stat <- fdr(fit[[1]])
+  truth <- gl(2, n_samples/2) %in% 2
+  th <- seq(0, 1, l = 1000)
+  tpr <- sapply(th, function(x){
+    sum((stat <= x)[truth])
+  })
+tpr <- tpr / sum(truth)
+  fpr <- sapply(th, function(x){
+    sum((stat <= x)[!truth])
+  })
+  fpr <- fpr / sum(!truth)
+  ROC <- data.frame(TPR = tpr, FPR = fpr, Ntot = names(fit)[1])
+  return(ROC)
+} 
+
+#We can compare MIMOSA to Fishers exact test 
+ROC.fisher<-function(fit, n_samples){
+  p<-vector('numeric',n_samples)
+  for(i in 1:n_samples){
+    # Single iteration version (i = 1)
+    p[i]<-fisher.test(matrix(countsTable(fit[[1]])[i,],nrow=2,byrow=FALSE),alternative="less")$p
+  }
+  p<-p.adjust(p,"fdr")
+   truth<-gl(2,n_samples/2)%in%2
+  th<-seq(0,1,l=1000)
+  tpr<-sapply(th,function(x){
+      sum((p<=x)[truth])
+  })/sum(truth)
+    fpr<-sapply(th,function(x){
+      sum((p<=x)[!truth])
+  })/sum(!truth)
+  return(data.frame(TPR=tpr,FPR=fpr,Ntot=names(fit)[1]))
+  }
+
+roc1<-ROC_results(fit,n_samples)
+roc2<-ROC.fisher(fit,n_samples)
+ROC<-rbind(data.frame(roc1,method="MIMOSA"),data.frame(roc2,method="Fisher"))
+ROC_plot<-ggplot(ROC)+geom_line(aes(x=FPR,y=TPR,color=method),lwd=1.5)+facet_wrap(~Ntot)+theme_bw()
+ggsave("roc_plot2.png",plot=ROC_plot,width=6,height=4,dpi=300)
+```

@@ -59,8 +59,34 @@ unstim_data <- data.frame(
   stringsAsFactors = FALSE
 )
 
+sim_data <- rbind(unstim_data, stim_data)
+  
+stim_data <- data.frame(
+  SUBJECTID = paste0("Subject_", 1:n_samples),
+  CYTOKINE = "IL2",
+  TCELL = "CD4",
+  STIMULATION = "Stimulated",
+  CYTNUM = n_s,
+  NSUB = N - n_s,
+  RefTreat = "Treatment",
+  stringsAsFactors = FALSE
+)
+
+unstim_data <- data.frame(
+  SUBJECTID = paste0("Subject_", 1:n_samples),
+  CYTOKINE = "IL2",
+  TCELL = "CD4",
+  STIMULATION = "Unstimulated",
+  CYTNUM = n_u,
+  NSUB = N - n_u,
+  RefTreat = "Reference",
+  stringsAsFactors = FALSE
+)
+
 # Combine both into one long-format data frame
 sim_data <- rbind(unstim_data, stim_data)
 return(sim_data)
+# Return a list 
+  return(sim_data)
   }
 
