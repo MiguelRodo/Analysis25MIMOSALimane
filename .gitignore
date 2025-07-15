@@ -2,7 +2,10 @@ _raw_data/**
 _tmp/**
 _output/**
 docs/**
-
+output.txt
+output[0-9]*.txt
+*.dat
+*.datP
 # Start of projr section: do not edit by hand (update with projr_ignore_auto())
 _archive/**
 # End of projr section

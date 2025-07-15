@@ -18,4 +18,3 @@ true_class <- posterior_probs > 0.5
 ps_mat <- data[, 201:400] #probabilities for stimulated
 pu_mat <- data[, 401:600] #probailities for unstimulated.
 ```
-
