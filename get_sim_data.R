@@ -37,17 +37,31 @@ for (i in seq_len(n_samples)) {
   p_posterior_u[i] <- (n_u[i] + (ifelse(responder_status[i] == 1, a_u_R, a_u_NR))) /(N + (ifelse(responder_status[i] == 1, a_u_R + b_u_R, a_u_NR + b_u_NR)))
 }
   
+stim_data <- data.frame(
+  SUBJECTID = paste0("Subject_", 1:n_samples),
+  CYTOKINE = "IL2",
+  TCELL = "CD4",
+  STIMULATION = "Stimulated",
+  CYTNUM = n_s,
+  NSUB = N - n_s,
+  RefTreat = "Treatment",
+  stringsAsFactors = FALSE
+)
+
+unstim_data <- data.frame(
+  SUBJECTID = paste0("Subject_", 1:n_samples),
+  CYTOKINE = "IL2",
+  TCELL = "CD4",
+  STIMULATION = "Unstimulated",
+  CYTNUM = n_u,
+  NSUB = N - n_u,
+  RefTreat = "Reference",
+  stringsAsFactors = FALSE
+)
+
+sim_data <- rbind(unstim_data, stim_data)
+  
 # Return a list 
-  return(list(
-    responder_status = responder_status,
-    p_s = p_s, 
-    p_u = p_u,
-    n_s = n_s, 
-    n_u = n_u,
-    p_hat_s = p_hat_s,
-    p_hat_u = p_hat_u,
-    p_posterior_s = p_posterior_s,
-    p_posterior_u = p_posterior_u
-  ))
+  return(sim_data)
   }
 
