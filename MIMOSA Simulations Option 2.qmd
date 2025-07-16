@@ -1,6 +1,7 @@
 ---
 title: "MIMOSA Simulations"
-format: pdf
+format: 
+  html: default
 editor: visual
 ---
 
