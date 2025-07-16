@@ -11,3 +11,4 @@ _archive/**
 # End of projr section
 
 .Rproj.user
+_tmp/log/sbatch/run_analysis

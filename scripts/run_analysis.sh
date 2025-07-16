@@ -10,7 +10,7 @@ start_time=$(date +%s)
 echo "HOSTNAME: $HOSTNAME"
 
 # Check if the SIF file exists using apptainer-exists
-if ! apptainer-exists -s comp25mimosa; then
+if ! apptainer-exists -s comp25mimosa-main; then
     echo "SIF file does not exist. Pulling it in..."
     apptainer-pull -r Comp25MIMOSA -u MiguelRodo
 elseq
@@ -25,7 +25,7 @@ echo "-------------------"
 echo "Run pipeline"
 date
 # apptainer-rscript -s comp25mimosa "<r code without any double quotes>"
-apptainer-rscript -s comp25mimosa "quarto::quarto_render('simluation.qmd')"
+apptainer-rscript -s comp25mimosa-main "quarto::quarto_render('MIMOSA Simulations Option 2.qmd')"
 echo "Completed running pipeline"
 date
 echo "-------------------"
