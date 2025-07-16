@@ -31,9 +31,10 @@ c <- c(1,2,10)[1]                   # Concentration (same for all)
 # Concentration and means
 mu_u_NR<-0.05
 mu_u_R <- 0.01           # Unstim mean for responders 
-source("C:/Users/liman/OneDrive - University of Cape Town/Documents/STA4006W 2025/Latex and Research/Analysis25MIMOSALimane/R/calculated_params.R")
-source("C:/Users/liman/OneDrive - University of Cape Town/Documents/STA4006W 2025/Latex and Research/Analysis25MIMOSALimane/R/get_sim_data.R")
-source("C:/Users/liman/OneDrive - University of Cape Town/Documents/STA4006W 2025/Latex and Research/Analysis25MIMOSALimane/R/prepare_for_mimosa.R")
+source("R/calculated_params.R")
+source("R/get_sim_data.R")
+source("R/prepare_for_mimosa.R")
+source("R/fit_MIMOSA.R")
 
 # Calculate distribution parameters
 params <- calculated_params(mu_u_NR, mu_u_R, f, c)
@@ -45,31 +46,6 @@ data <- get_sim_data(n_samples, w, params, N)
 From here we need to format the data so that we can be able to fit MIMOSA
 
 ```{r}
-# Combine the data
-stim_data <- data.frame(
-  SUBJECTID = paste0("Subject_", 1:n_samples),
-  CYTOKINE = "IL2",
-  TCELL = "CD4",
-  STIMULATION = "Stimulated",
-  CYTNUM = n_s,
-  NSUB = N - n_s,
-  RefTreat = "Treatment",
-  stringsAsFactors = FALSE
-)
-
-unstim_data <- data.frame(
-  SUBJECTID = paste0("Subject_", 1:n_samples),
-  CYTOKINE = "IL2",
-  TCELL = "CD4",
-  STIMULATION = "Unstimulated",
-  CYTNUM = n_u,
-  NSUB = N - n_u,
-  RefTreat = "Reference",
-  stringsAsFactors = FALSE
-)
-
-# Combine both into one long-format data frame
-sim_data <- rbind(unstim_data, stim_data)
 library(dplyr)
 E <- prepare_for_mimosa(sim_data)
 fit <- MIMOSA(
