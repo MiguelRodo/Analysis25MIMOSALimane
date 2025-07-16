@@ -6,7 +6,6 @@ editor: visual
 
 ```{r,message=FALSE,warning=FALSE}
 #loading MIMOSA
-
 #install.packages("devtools") #install devtools package
 library(devtools) #load it
 #install_github("RGLab/MIMOSA",ref="trunk") 
@@ -40,20 +39,9 @@ source("R/fit_MIMOSA.R")
 params <- calculated_params(mu_u_NR, mu_u_R, f, c)
 
 # Generate simulated data
-data <- get_sim_data(n_samples, w, params, N)
-```
-
-From here we need to format the data so that we can be able to fit MIMOSA
-
-```{r}
-library(dplyr)
+sim_data <- get_sim_data(n_samples, w, params, N)
+#From here we need to format the data so that we can be able to fit MIMOSA
 E <- prepare_for_mimosa(sim_data)
-fit <- MIMOSA(
-  NSUB + CYTNUM ~ SUBJECTID | CYTOKINE,
-  data = E,
-  subset = RefTreat == "Treatment" & CYTOKINE == "IL2",
-  ref = RefTreat == "Reference" & CYTOKINE == "IL2",
-  RT = FALSE
-)
+fit <- fit_MIMOSA(E)
 summary(fit)
 ```
