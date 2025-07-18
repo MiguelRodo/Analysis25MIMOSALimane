@@ -23,11 +23,11 @@ stimulated will react the same whether it is responder or not.Unstimulated react
 set.seed(2025)
 
 # Simulation parameters
-n_samples <- c(50,100,200)[3]    # Number of participants
-N <- c(10e3,25e3 ,100e3)[1]             # Number of cells measured per sample
-w <- c(0.25,0.5,0.75)[2]                # Probability of being a responder
-f<-c(1,2,10)[1]#inflation factor
-c <- c(1,2,10)[1]                   # Concentration (same for all)
+n_samples_list <- c(50,100,200)   # Number of participants
+N_list <- c(10e3,25e3 ,100e3)             # Number of cells measured per sample
+w_list <- c(0.25,0.5,0.75)               # Probability of being a responder
+f_list<-c(1,2,10)#inflation factor
+c_list <- c(1,2,10)                   # Concentration (same for all)
 # Concentration and means
 mu_u_NR<-0.05
 mu_u_R <- 0.01           # Unstim mean for responders 
@@ -36,13 +36,24 @@ source("R/get_sim_data.R")
 source("R/prepare_for_mimosa.R")
 source("R/fit_MIMOSA.R")
 
-# Calculate distribution parameters
-params <- calculated_params(mu_u_NR, mu_u_R, f, c)
 
-# Generate simulated data
-sim_data <- get_sim_data(n_samples, w, params, N)
-#From here we need to format the data so that we can be able to fit MIMOSA
-E <- prepare_for_mimosa(sim_data)
-fit <- fit_MIMOSA(E)
-summary(fit)
+for (n_samples in n_samples_list){
+    for (N in N_list){
+        for (w in w_list){
+            for (f in f_list){
+                for (c in c_list){
+                    params <- calculated_params(mu_u_NR, mu_u_R, f, c)
+
+                    # Generate simulated data
+                    sim_data <- get_sim_data(n_samples, w, params, N)
+                    #From here we need to format the data so that we can be able to fit MIMOSA
+                    E <- prepare_for_mimosa(sim_data)
+                    fit <- fit_MIMOSA(E)
+                   
+                    
+                }
+            }
+        }
+    }
+}
 ```
