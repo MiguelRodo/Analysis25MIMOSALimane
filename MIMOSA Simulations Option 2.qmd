@@ -21,13 +21,12 @@ stimulated will react the same whether it is responder or not.Unstimulated react
 
 ```{r}
 set.seed(2025)
-
-# Simulation parameters
-n_samples_list <- c(50,100,200)   # Number of participants
-N_list <- c(10e3,25e3 ,100e3)             # Number of cells measured per sample
-w_list <- c(0.25,0.5,0.75)               # Probability of being a responder
-f_list<-c(1,2,10)#inflation factor
-c_list <- c(1,2,10)                   # Concentration (same for all)
+# Simulation parameters in a list
+n_samples_list <- c(10,50)   # Number of participants
+N_list <- c(1e3,10e3)         # Number of cells measured per sample
+w_list <- c(0.25,0.5)         # Probability of being a responder
+f_list<-c(1,2)                # inflation factor
+c_list <- c(1,2)              # Concentration (same for all)
 # Concentration and means
 mu_u_NR<-0.05
 mu_u_R <- 0.01           # Unstim mean for responders 
