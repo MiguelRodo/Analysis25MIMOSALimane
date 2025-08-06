@@ -34,25 +34,10 @@ source("R/calculated_params.R")
 source("R/get_sim_data.R")
 source("R/prepare_for_mimosa.R")
 source("R/fit_MIMOSA.R")
+source("R/Roc_fisher_clean.R")
+source("R/simulate_all.R")
+
+simulate_all(n_samples_list, N_list, w_list, f_list, c_list, mu_u_NR, mu_u_R)
 
 
-for (n_samples in n_samples_list){
-    for (N in N_list){
-        for (w in w_list){
-            for (f in f_list){
-                for (c in c_list){
-                    params <- calculated_params(mu_u_NR, mu_u_R, f, c)
-
-                    # Generate simulated data
-                    sim_data <- get_sim_data(n_samples, w, params, N)
-                    #From here we need to format the data so that we can be able to fit MIMOSA
-                    E <- prepare_for_mimosa(sim_data)
-                    fit <- fit_MIMOSA(E)
-                   
-                    
-                }
-            }
-        }
-    }
-}
 ```

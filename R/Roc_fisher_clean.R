@@ -7,7 +7,6 @@ ROC_results <- function(fit, n_samples) {
   tpr <- sapply(th, function(x) {
     sum((stat <= x)[truth])
   })
-  
   tpr <- tpr / sum(truth)
   fpr <- sapply(th, function(x) {
     sum((stat <= x)[!truth])
