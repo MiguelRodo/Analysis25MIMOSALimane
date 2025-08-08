@@ -1,0 +1,43 @@
+---
+title: "MIMOSA Simulations"
+format: 
+  html: default
+editor: visual
+---
+
+```{r,message=FALSE,warning=FALSE}
+#loading MIMOSA
+#install.packages("devtools") #install devtools package
+library(devtools) #load it
+#install_github("RGLab/MIMOSA",ref="trunk") 
+library(ggplot2)
+library(MIMOSA) #load MIMOSA
+library(dplyr)
+```
+
+Parameters
+
+stimulated will react the same whether it is responder or not.Unstimulated reacts different when it is a reponder vs non-responder.
+
+```{r}
+set.seed(2025)
+# Simulation parameters in a list
+n_samples_list <- c(10,50)   # Number of participants
+N_list <- c(1e3,10e3)         # Number of cells measured per sample
+w_list <- c(0.25,0.5)         # Probability of being a responder
+f_list<-c(1,2)                # inflation factor
+c_list <- c(1,2)              # Concentration (same for all)
+# Concentration and means
+mu_u_NR<-0.05
+mu_u_R <- 0.01           # Unstim mean for responders 
+source("R/calculated_params.R")
+source("R/get_sim_data.R")
+source("R/prepare_for_mimosa.R")
+source("R/fit_MIMOSA.R")
+source("R/Roc_fisher_clean.R")
+source("R/simulate_all.R")
+
+simulate_all(n_samples_list, N_list, w_list, f_list, c_list, mu_u_NR, mu_u_R)
+
+
+```
