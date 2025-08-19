@@ -1,5 +1,4 @@
 ROC_results <- function(fit, n_samples) {
-  
   # Single iteration version (i = 1)
   stat <- fdr(fit[[1]])
   truth <- gl(2, n_samples / 2) %in% 2
@@ -18,9 +17,9 @@ ROC_results <- function(fit, n_samples) {
 #We can compare MIMOSA to Fishers exact test
 ROC_fisher <- function(fit, n_samples) {
   p <- vector("numeric", n_samples)
-  for (i in 1:100){
-    # Single iteration version (i = 1)
-    mat <- matrix(countsTable(fit[[1]])[i, ], nrow = 2, byrow = FALSE)
+  ct <- countsTable(fit[[1]])
+  for (i in 1:nrow(ct)) {
+    mat <- matrix(ct[i, ], nrow = 2, byrow = FALSE)
     p[i] <- fisher.test(mat, alternative = "less")$p
   }
   p <- p.adjust(p, "fdr")

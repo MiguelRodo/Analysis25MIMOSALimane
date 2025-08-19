@@ -1,6 +1,6 @@
 
-calculated_params <- function(mu_u_NR , mu_u_R, f , c){
-  mu_s <- mu_u_NR * (1 + f)# Stimulated mean (fixed for all) used f = 1 
+calculated_params <- function(mu_u_NR, mu_u_R, f, c){
+  mu_s <- mu_u_NR * (1 + f)# Stimulated mean (fixed for all) used f = 1
   # Convert means for beta distribution
   a_s <- c * mu_s
   b_s <- c * (1 - mu_s)
@@ -21,4 +21,3 @@ calculated_params <- function(mu_u_NR , mu_u_R, f , c){
     b_u_NR = b_u_NR
   ))
 }
-

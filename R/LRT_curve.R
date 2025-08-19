@@ -35,7 +35,7 @@ lrt_curve <- function(data, alpha = 0.05) {
       data = subj_data
     )
     null <- stats::glm(
-      cbind(CYTNUM, NSSUB = NSUB) ~ 1, # NSSUB name is ignored; cbind position matters
+      cbind(CYTNUM, NSSUB = NSUB) ~ 1, # NSSUB name is ignored;
       family = stats::binomial(),
       data = subj_data
     )
@@ -43,7 +43,8 @@ lrt_curve <- function(data, alpha = 0.05) {
     a <- stats::anova(null, full, test = "Chisq")
     p <- as.numeric(a$`Pr(>Chi)`[2])
 
-    lrt_results <- rbind(lrt_results, data.frame(subject = subject, p_value = p))
+    lrt_results <- rbind(lrt_results, data.frame(subject = subject, p_value = p)
+    )
   }
 
   # BH FDR and truth

@@ -1,5 +1,5 @@
-
 prepare_for_mimosa <- function(sim_data) {
+  library(dplyr)
   sim_data <- dplyr::mutate(sim_data,
                             RefTreat = ifelse(STIMULATION == "Unstimulated",
                                               "Reference", "Treatment"))
@@ -15,13 +15,12 @@ prepare_for_mimosa <- function(sim_data) {
     dplyr::filter(all(c("Stimulated", "Unstimulated") %in% STIMULATION)) %>%
     dplyr::ungroup() %>%
     dplyr::mutate(REFERENCE = STIMULATION == "Unstimulated")
-
   E <- ConstructMIMOSAExpressionSet(
     paired,
-    reference = STIMULATION %in% "Unstimulated",
+    reference = (STIMULATION == "Unstimulated") ,
     measure.columns = c("NSUB", "CYTNUM"),
     .variables = c("SUBJECTID", "CYTOKINE", "TCELL")
   )
-  E
   print("Constructed ExpressionSet")
+  return(E)
 }

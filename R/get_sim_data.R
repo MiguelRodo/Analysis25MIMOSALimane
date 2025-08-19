@@ -60,6 +60,36 @@ get_sim_data <- function(n_samples, w, params, N) {
   )
   # Combine both into one long-format data frame
   sim_data <- rbind(unstim_data, stim_data)
-  sim_data
+  # Add responder status to the data
+ return(list(
+    data = sim_data,
+    responder_status = responder_status
+  ))
 }
-
+# Function to plot the cell count trends for responders and non-responders
+# It visualizes the change of functional cell counts
+#across conditions and responder status
+plot_responder_comparison <- function(sim_result) {
+  # Get data and responder status
+  data <- sim_result$data
+  responder_status <- sim_result$responder_status
+  # Add responder label to data
+  data$RESPONDER <- rep(ifelse(responder_status == 1,
+                               "Responder", "Non-Responder"), 2)
+  data$STIMULATION <- factor(data$STIMULATION,
+                            levels = c("Unstimulated", "Stimulated"))
+ # Plot trend in cell counts 
+ p1 <- ggplot(data, aes(x = STIMULATION, y = CYTNUM, color = RESPONDER)) +
+   geom_line(aes(group = SUBJECTID), alpha = 0.6, size = 0.5) +
+    geom_point(size = 2, alpha = 0.8) +
+    facet_wrap(~RESPONDER) +
+    labs(
+      title = "Cell Count Distribution by Responder Status",
+      x = "Condition",
+      y = "Number of Functional Cells",
+      color = "Responder Status"
+    ) +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    return(p1)
+}
