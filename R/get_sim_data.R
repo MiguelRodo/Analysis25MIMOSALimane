@@ -20,22 +20,19 @@ get_sim_data <- function(n_samples, w, params, N) {
   p_posterior_u <- rep(NA, n_samples)
 
   for (i in seq_len(n_samples)) {
-    # Stimulated condition 
-    p_s[i] <- rbeta(1, a_s, b_s)
-    n_s[i] <- rbinom(1, N, p_s[i])
-    p_hat_s[i] <- n_s[i] / N
-    p_posterior_s[i] <- (n_s[i] + a_s) / (N + a_s + b_s)
-    # Unstimulated condition — DIFFERENT depending on responder status
+     # Unstimulated condition - DIFFERENT depending on responder status
     if (responder_status[i] == 1) {
+      # Responders: LOW unstimulated response (to create big difference with stimulated)
       p_u[i] <- rbeta(1, a_u_R, b_u_R)
     } else {
+      # Non-responders: HIGH unstimulated response (closer to stimulated level)
       p_u[i] <- rbeta(1, a_u_NR, b_u_NR)
     }
     n_u[i] <- rbinom(1, N, p_u[i])
-    p_hat_u[i] <- n_u[i] / N
-    a_num <- ifelse(responder_status[i] == 1, a_u_R, a_u_NR)
-    a_den <- ifelse(responder_status[i] == 1, a_u_R + b_u_R, a_u_NR + b_u_NR)
-    p_posterior_u[i] <- (n_u[i] + a_num) / (N + a_den)
+    
+    # Stimulated condition - SAME for everyone (responders and non-responders)
+    p_s[i] <- rbeta(1, a_s, b_s)
+    n_s[i] <- rbinom(1, N, p_s[i])
   }
   stim_data <- data.frame(
     SUBJECTID = paste0("Subject_", 1:n_samples),
@@ -93,3 +90,4 @@ plot_responder_comparison <- function(sim_result) {
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
     return(p1)
 }
+
