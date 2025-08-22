@@ -1,71 +1,59 @@
 lrt_curve <- function(data, alpha = 0.05) {
-  # Expect: data is a list with $data (long df) and $responder_status (0/1)
+  # Extract data and true responder status
   df_raw   <- data$data
   resp_vec <- data$responder_status
-
-  # Map responder truth to rows
-  subject_idx <- as.integer(sub("Subject_", "", df_raw$SUBJECTID))
-  df <- dplyr::mutate(
-    df_raw,
-    responder  = as.integer(resp_vec[subject_idx]),
-    proportion = CYTNUM / (CYTNUM + NSUB)
+  subjects <- unique(df_raw$SUBJECTID)
+  
+  # Run Fisher's exact test per subject
+  results_list <- lapply(subjects, function(subj) {
+    sub_data <- df_raw[df_raw$SUBJECTID == subj, , drop = FALSE]
+    
+    unstim <- sub_data[sub_data$STIMULATION == "Unstimulated", , drop = FALSE]
+    stim   <- sub_data[sub_data$STIMULATION == "Stimulated",   , drop = FALSE]
+    
+    cont_table <- matrix(
+      c(unstim$CYTNUM, unstim$NSUB,
+        stim$CYTNUM,   stim$NSUB),
+      nrow = 2, byrow = TRUE,
+      dimnames = list(Condition = c("Unstimulated", "Stimulated"),
+                      Status    = c("Pos", "Neg"))
+    )
+    
+    ft <- stats::fisher.test(cont_table)
+    
+    data.frame(
+      SUBJECTID = as.character(subj),
+      p_value   = as.numeric(ft$p.value),
+      stringsAsFactors = FALSE
+    )
+  })
+  
+  # Combine results
+  results_df <- do.call(rbind, results_list)
+  results_df$fdr <- stats::p.adjust(results_df$p_value, method = "BH")
+  
+  # Map true responder status
+  subj_idx <- as.integer(gsub("Subject_", "", results_df$SUBJECTID))
+  results_df$true_responder <- as.integer(resp_vec[subj_idx])
+  results_df$score <- 1 - results_df$p_value
+  
+  # ROC calculation
+  roc_obj <- pROC::roc(
+    response  = results_df$true_responder,
+    predictor = results_df$score,
+    levels    = c(0, 1),
+    direction = ">"
   )
-
-  # Per-subject LRT (binomial GLM: Stimulated vs Unstimulated)
-  subjects <- unique(df$SUBJECTID)
-  lrt_results <- data.frame(
-    subject  = character(),
-    p_value  = numeric(),
-    stringsAsFactors = FALSE
+  
+  auc_value <- as.numeric(pROC::auc(roc_obj))
+  coords <- as.data.frame(pROC::coords(
+    roc_obj, "all", ret = c("specificity", "sensitivity"), transpose = FALSE
+  ))
+  
+  roc_data <- data.frame(
+    FPR = 1 - coords$specificity,
+    TPR = coords$sensitivity
   )
-
-  for (subject in subjects) {
-    subj_data <- df[df$SUBJECTID == subject, , drop = FALSE]
-
-    # Need exactly one row per condition
-    unstim <- subj_data[subj_data$STIMULATION == "Unstimulated", , drop = FALSE]
-    stim   <- subj_data[subj_data$STIMULATION == "Stimulated",   , drop = FALSE]
-    if (nrow(unstim) != 1 || nrow(stim) != 1) next
-
-    # Binomial GLM with counts: successes = CYTNUM, failures = NSUB
-    # Total trials = CYTNUM + NSUB
-    full <- stats::glm(
-      cbind(CYTNUM, NSUB) ~ STIMULATION,
-      family = stats::binomial(),
-      data = subj_data
-    )
-    null <- stats::glm(
-      cbind(CYTNUM, NSSUB = NSUB) ~ 1, # NSSUB name is ignored;
-      family = stats::binomial(),
-      data = subj_data
-    )
-    # Likelihood ratio test comparing null vs full
-    a <- stats::anova(null, full, test = "Chisq")
-    p <- as.numeric(a$`Pr(>Chi)`[2])
-
-    lrt_results <- rbind(lrt_results, data.frame(subject = subject, p_value = p)
-    )
-  }
-
-  # BH FDR and truth
-  lrt_results$fdr <- p.adjust(lrt_results$p_value, method = "BH")
-  subject_numbers <- as.integer(sub("Subject_", "", lrt_results$subject))
-  lrt_results$true_responder <- as.integer(resp_vec[subject_numbers])
-
-  # Build ROC-like curve (sweep FDR thresholds) and return only TPR/FPR
-  thresholds <- seq(0, 1, by = 0.01)
-  roc_data <- do.call(rbind, lapply(thresholds, function(thresh) {
-    pred <- ifelse(lrt_results$fdr < thresh, 1, 0)
-    tp <- sum(pred == 1 & lrt_results$true_responder == 1)
-    fp <- sum(pred == 1 & lrt_results$true_responder == 0)
-    tn <- sum(pred == 0 & lrt_results$true_responder == 0)
-    fn <- sum(pred == 0 & lrt_results$true_responder == 1)
-
-    tpr <- ifelse(tp + fn > 0, tp / (tp + fn), 0)
-    fpr <- ifelse(fp + tn > 0, fp / (fp + tn), 0)
-
-    data.frame(TPR = tpr, FPR = fpr)
-  }))
-
+  
   return(roc_data)
 }
