@@ -14,7 +14,7 @@ simulate_all <- function(n_samples_list, N_list, w_list, f_list, c_list,
             all_roc_fisher <- list()
             for (run in 1:n_runs) {
               # Compute parameters
-              params <- calculated_params(mu_u_NR, mu_u_R, f, c)
+              params <- calculated_params(mu_u_NR, mu_u_R, f, c_R, c_NR)
               # Simulate data
               sim_res <- get_sim_data(n_samples, w, params, N)
               sim_data <- sim_res$data
@@ -26,7 +26,8 @@ simulate_all <- function(n_samples_list, N_list, w_list, f_list, c_list,
               sim_data$n_samples <- n_samples
               sim_data$w <- w
               sim_data$f <- f
-              sim_data$c <- c
+              sim_data$c_R <- c_R
+              sim_data$c_NR <- c_NR
               sim_data$run <- run   #  keep track of run number
               # Save in list
               all_sim_data[[length(all_sim_data) + 1]] <- sim_data

@@ -1,13 +1,24 @@
 # Function to plot ROC curves
 # It combines the results from MIMOSA and Fisher's test and plots them
-plot_curves <- function(roc_result, roc_fisher, n_samples) {
+plot_curves <- function(roc_result, roc_fisher, n_samples,
+auc_mimosa = NA, auc_fisher = NA) {
   ROC <- rbind(
     data.frame(roc_result, Method = "MIMOSA"),
     data.frame(roc_fisher, Method = "Fisher")
   )
   roc_p <- ggplot(ROC) +
     geom_line(aes(x = FPR, y = TPR, color = Method), lwd = 1.5) +
-    theme_bw()
+    theme_bw()+
+    # Add AUC annotations
+    annotate("text", x = 0.6, y = 0.2, label = paste0("AUC MIMOSA: ",
+     round(auc_mimosa, 3)), color = "blue") +
+    annotate("text", x = 0.6, y = 0.1, label = paste0("AUC Fisher: ",
+     round(auc_fisher, 3)), color = "red") +
+    labs(
+      title = paste("ROC Curves, n_samples =", n_samples),
+      x = "False Positive Rate",
+      y = "True Positive Rate"
+    )
   return(roc_p)
 }
 

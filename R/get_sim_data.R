@@ -2,8 +2,11 @@
 get_sim_data <- function(n_samples, w, params, N) {
   set.seed(2025)
   # Extract parameter values from the list
-  a_s    <- params$a_s
-  b_s    <- params$b_s
+  a_s_R  <- params$a_s_R
+  b_s_R  <- params$b_s_R
+  a_s_NR <- params$a_s_NR
+  b_s_NR <- params$b_s_NR
+
   a_u_R  <- params$a_u_R
   b_u_R  <- params$b_u_R
   a_u_NR <- params$a_u_NR
@@ -20,21 +23,24 @@ get_sim_data <- function(n_samples, w, params, N) {
   p_posterior_u <- rep(NA, n_samples)
 
   for (i in seq_len(n_samples)) {
-     # Unstimulated condition - DIFFERENT depending on responder status
+    # Unstimulated condition - DIFFERENT depending on responder status
     if (responder_status[i] == 1) {
-      # Responders: LOW unstimulated response (to create big difference with stimulated)
+      # Responders: LOW unstimulated response 
       p_u[i] <- rbeta(1, a_u_R, b_u_R)
     } else {
       # Non-responders: HIGH unstimulated response (closer to stimulated level)
       p_u[i] <- rbeta(1, a_u_NR, b_u_NR)
     }
     n_u[i] <- rbinom(1, N, p_u[i])
-    
-    # Stimulated condition - SAME for everyone (responders and non-responders)
-    p_s[i] <- rbeta(1, a_s, b_s)
+    # Stimulated condition - difference based on (responders and non-responders)
+    if (responder_status[i] == 1) {
+      p_s[i] <- rbeta(1, a_s_R, b_s_R)
+    } else {
+      p_s[i] <- rbeta(1, a_s_NR, b_s_NR)
+    }
     n_s[i] <- rbinom(1, N, p_s[i])
   }
-  stim_data <- data.frame(
+stim_data <- data.frame(
     SUBJECTID = paste0("Subject_", 1:n_samples),
     CYTOKINE = "IL2",
     TCELL = "CD4",
@@ -45,7 +51,7 @@ get_sim_data <- function(n_samples, w, params, N) {
     stringsAsFactors = FALSE
   )
 
-  unstim_data <- data.frame(
+unstim_data <- data.frame(
     SUBJECTID = paste0("Subject_", 1:n_samples),
     CYTOKINE = "IL2",
     TCELL = "CD4",
@@ -58,10 +64,10 @@ get_sim_data <- function(n_samples, w, params, N) {
   # Combine both into one long-format data frame
   sim_data <- rbind(unstim_data, stim_data)
   # Add responder status to the data
- return(list(
-    data = sim_data,
-    responder_status = responder_status
-  ))
+return(list(
+  data = sim_data,
+  responder_status = responder_status
+))
 }
 # Function to plot the cell count trends for responders and non-responders
 # It visualizes the change of functional cell counts
@@ -90,4 +96,3 @@ plot_responder_comparison <- function(sim_result) {
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
     return(p1)
 }
-
