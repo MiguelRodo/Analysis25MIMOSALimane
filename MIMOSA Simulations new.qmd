@@ -74,17 +74,16 @@ for (n_samples in n_samples_list){
                         print("=== Running Simulation with Parameters ===")
                         print(paste("Parameters: n_samples =", n_samples, ", N =", N, ", w =", w, ", f =", f, ", c_u =", c_u, ", c_s =", c_s))
                         # Store results from multiple runs
+                        # Store results from multiple runs
                         all_roc_mimosa <- list()
                         all_roc_fisher <- list()
-                        all_roc_lrt <- list()
-                        all_auc_fisher <- numeric(n_runs) 
                         
                         # Run multiple simulations
                         for(run in 1:n_runs) {
                             
                             # Get simulation data
-                            params <- calculated_params(mu_u_NR, mu_u_R, f, c_R, c_NR)
-                            dat <- get_sim_data(n_samples, w, params, N )
+                            params <- calculated_params(mu_u_NR, mu_u_R, f, c_u, c_s)
+                            dat <- get_sim_data(n_samples, w, params, N, run)
                             # Fit MIMOSA model
                             E <- prepare_for_mimosa(dat$data)
                             if (is.null(E)) {
@@ -94,25 +93,24 @@ for (n_samples in n_samples_list){
                             print("fitting MIMOSA model")
                             #browser()
                             fit <- fit_MIMOSA(E)
-                            # Calculate ROC results
-                            roc_result <- ROC_curve(fit, n_samples, dat)
-                            roc_fisher <- lrt_curve(dat)
-                            #roc_lrt <-lrt_curve(data)
+                             # Calculate ROC results
+                             roc_result <- ROC_curve(fit, dat)
+                             roc_fisher <- fishers_curve(dat)
+
                             all_roc_mimosa[[run]] <- roc_result
-                            all_roc_fisher[[run]] <- roc_fisher$roc_data
-                             all_auc_fisher[run] <- roc_fisher$auc
-                            #all_roc_lrt[[run]] <- roc_lrt
+                            all_roc_fisher[[run]] <- roc_fisher
                         }
                         # Average the curves
                         avg_roc_mimosa <- average_roc_curves(all_roc_mimosa)
                         avg_roc_fisher <- average_roc_curves(all_roc_fisher)
-                        # Mean AUC across runs
-                        auc_mimosa <- mean(sapply(all_roc_mimosa, function(x) x$auc), na.rm = TRUE)
-                      auc_fisher <- mean(all_auc_fisher, na.rm = TRUE)
                         # Plot averaged curves
-                        p <- plot_curves(avg_roc_mimosa, avg_roc_fisher, n_samples, auc_mimosa, auc_fisher)
-                        filename<-                                sprintf("plots/ROC_avg_ns%d_N%.0f_w%.2f_f%.0f_cR%.0f_cNR%.0f_runs%d.png",
-                    n_samples, N, w, f, c_R, c_NR, n_runs)
+                        # Plot averaged curves
+                        p <- plot_curves(MIMOSA = avg_roc_mimosa, 
+                            Fisher = avg_roc_fisher, n_samples = n_samples)
+
+                        filename <- sprintf("plots/ROC_avg_ns%d_N%.0f_w%.2f_f%.0f_cu%.0f_cs%.0f_runs%d.png",
+                                n_samples, N, w, f, c_u, c_s, n_runs)
+
                         ggsave(filename, plot = p, width = 8, height = 6, dpi = 300)
                      }
                  }
@@ -178,3 +176,4 @@ for (n_samples_val in n_samples_list) {
 }
 
 ```
+
