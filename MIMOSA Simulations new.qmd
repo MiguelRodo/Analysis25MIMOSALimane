@@ -27,7 +27,7 @@ stimulated will react the same whether it is responder or not.Unstimulated react
 ```{r}
 set.seed(2025)
 source("R/calculated_params.R")
-source("R/get_sim_data.R")
+source("R/simulate_data.R")
 source("R/prepare_for_mimosa.R")
 source("R/fit_MIMOSA.R")
 source("R/average_ROC_results.R")
@@ -73,7 +73,7 @@ for (n_samples in n_samples_list){
                             
                             # Get simulation data
                             params <- calculated_params(mu_u_NR, mu_u_R, f, c_u, c_s)
-                            dat <- get_sim_data(n_samples, w, params, N, run)
+                            dat <- simulate_data(n_samples, w, params, N, run)
                             # Fit MIMOSA model
                             E <- prepare_for_mimosa(dat$data)
                             if (is.null(E)) {
@@ -152,7 +152,7 @@ for (n_samples_val in n_samples_list) {
                                ", N =", N_val, ", w =", w_val, ", f =", f_val, ", c_u =", c_u, ", c_s =", c_s))                   
                     # Generate data
                     params <- calculated_params(mu_u_NR, mu_u_R, f_val, c_u,c_s)
-                    dat <- get_sim_data(n_samples_val, w_val, params, N_val, run)
+                    dat <- simulate_data(n_samples_val, w_val, params, N_val, run)
                     # Plot the cell count distribution by responder status
                     plot <- plot_responder_comparison(dat)
                     # Save plot
@@ -247,7 +247,7 @@ for (n_samples in n_samples_list) {
             for (run in 1:n_runs) {
 
               # Get simulation data
-              params <- calculate_params(mu_u_NR, mu_u_R, f, c_u, c_s)
+              params <- calculated_params(mu_u_NR, mu_u_R, f, c_u, c_s)
               dat <- simulate_data(n_samples, w, params, N, run)
 
               # Fit MIMOSA model
@@ -316,3 +316,4 @@ mu_u_R  <- c(0.00308)          # Means for responders (unstimulated)
 
 n_runs   <- 10              # Number of simulation runs
 '''
+
