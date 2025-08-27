@@ -1,5 +1,4 @@
-
-calculated_params <- function(mu_u_NR, mu_u_R, f, c_u, c_s) {
+calculate_params <- function(mu_u_NR, mu_u_R, f, c_u, c_s) {
   
   # Stimulated condition 
   mu_s <- mu_u_R * (1 + f)  
@@ -21,4 +20,5 @@ calculated_params <- function(mu_u_NR, mu_u_R, f, c_u, c_s) {
     mu_s = mu_s, mu_u_R = mu_u_R, mu_u_NR = mu_u_NR
   ))
 }
+
 
