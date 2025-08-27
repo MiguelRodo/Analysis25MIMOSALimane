@@ -1,5 +1,5 @@
-ROC_curve <- function(fit, n_samples, data) {
- mimosa_obj <- fit$IL2
+ROC_curve <- function(fit, data) {
+  mimosa_obj <- fit$IL2
   res <- mimosa_obj@result
   prob_mat <- res@z
   pheno <- res@phenoData@data
