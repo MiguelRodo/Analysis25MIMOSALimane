@@ -50,14 +50,17 @@ source("R/simulate_all.R")
 # n_runs_list    <- 10                    # Number of simulation runs
 
 n_samples_list <- c( 200)        # Number of participants
-N_list        <- c(50e3)     # Number of cells per sample
+N_list        <- c(10e3)     # Number of cells per sample
 w_list       <- c(0.5)       # Probability of responder
 f_list       <- c(5)           # Inflation factor
-c_R_list  <- c(400)# Concentration
-c_NR_list<-c(26345)
-mu_u_NR <- c(0.004)          # Means for non-responders (unstimulated)
-mu_u_R  <- c(0.004)    # Means for responders (unstimulated), let it be the same
-n_runs   <- 1                    # Number of simulation runs
+
+c_stim_list       <- c(398)      # Concentration
+c_unstim_list       <- c(26345)      # Concentration
+
+mu_u_NR <- c(3e-05)          # Means for non-responders (unstimulated)
+mu_u_R  <- c(3e-05)          # Means for responders (unstimulated)
+
+n_runs   <- 5                  # Number of simulation runs
 ```
 
 ```{r}
@@ -66,10 +69,10 @@ for (n_samples in n_samples_list){
         for (N in N_list) {
             for (w in w_list) {
                 for (f in f_list) {
-                    for (c_R in c_R_list) {
-                        for (c_NR in c_NR_list) {
+                    for (c_u in c_unstim_list) {
+                        for (c_s in c_stim_list) {
                         print("=== Running Simulation with Parameters ===")
-                        print(paste("Parameters: n_samples =", n_samples, ", N =", N, ", w =", w, ", f =", f, ", c_R =", c_R,", c_NR =", c_NR))
+                        print(paste("Parameters: n_samples =", n_samples, ", N =", N, ", w =", w, ", f =", f, ", c_u =", c_u, ", c_s =", c_s))
                         # Store results from multiple runs
                         all_roc_mimosa <- list()
                         all_roc_fisher <- list()
@@ -173,4 +176,5 @@ for (n_samples_val in n_samples_list) {
         }
     }
 }
+
 ```
