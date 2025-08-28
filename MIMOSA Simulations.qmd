@@ -20,16 +20,16 @@ library(pROC)
 
 ```{r}
 #Load functions
-source("code/calculate_params.R")
-source("code/simulate_data.R")
-source("code/prepare_for_mimosa.R")
-source("code/fit_MIMOSA.R")
-source("code/average_ROC_results.R")
-source("code/ROC_curve.R")
-source("code/fishers_curve.R")
-source("code/LRT_curve.R")
-source("code/run_analysis.R")
-source("code/empirical_density.R")
+source("R/calculate_params.R")
+source("R/simulate_data.R")
+source("R/prepare_for_mimosa.R")
+source("R/fit_MIMOSA.R")
+source("R/average_ROC_results.R")
+source("R/ROC_curve.R")
+source("R/fishers_curve.R")
+source("R/LRT_curve.R")
+source("R/run_analysis.R")
+source("R/empirical_density.R")
 
 ```
 
@@ -170,6 +170,4 @@ Run simulations for varying number of subjects
 n_samples_list <- c(20, 50, 100)   # Number of participants
 ```
 
-Varying the proportion of responders
-```{r}
-w_list       <- c(0.2, 0.4, 0.6, 0.8, 1)  
+Varying the proportion of responders \`\`\`{r} w_list \<- c(0.2, 0.4, 0.6, 0.8, 1)
