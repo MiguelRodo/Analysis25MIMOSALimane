@@ -27,7 +27,7 @@ stimulated will react the same whether it is responder or not.Unstimulated react
 ```{r}
 set.seed(2025)
 source("R/calculated_params.R")
-source("R/get_sim_data.R")
+source("R/simulate_data.R")
 source("R/prepare_for_mimosa.R")
 source("R/fit_MIMOSA.R")
 source("R/average_ROC_results.R")
@@ -39,6 +39,7 @@ source("R/simulate_all.R")
 ```
 
 ```{r}
+<<<<<<< HEAD
 # Parameter lists
 # n_samples_list <- c( 200)        # Number of participants
 # N_list        <- c(10e3, 25e3, 50e3)     # Number of cells per sample
@@ -58,6 +59,20 @@ c_NR_list<-c(26345)
 mu_u_NR <- c(0.00004)          # Means for non-responders (unstimulated)
 mu_u_R  <- c(0.00207)    # Means for responders (unstimulated), let it be the same
 n_runs   <- 3                 # Number of simulation runs
+=======
+n_samples_list <- c( 200)        # Number of participants
+N_list        <- c(10e3)     # Number of cells per sample
+w_list       <- c(0.5)       # Probability of responder
+f_list       <- c(5)           # Inflation factor
+
+c_stim_list       <- c(398)      # Concentration
+c_unstim_list       <- c(26345)      # Concentration
+
+mu_u_NR <- c(3e-05)          # Means for non-responders (unstimulated)
+mu_u_R  <- c(3e-05)          # Means for responders (unstimulated)
+
+n_runs   <- 5                  # Number of simulation runs
+>>>>>>> refs/remotes/origin/main
 ```
 
 ```{r}
@@ -66,22 +81,21 @@ for (n_samples in n_samples_list){
         for (N in N_list) {
             for (w in w_list) {
                 for (f in f_list) {
-                    for (c_R in c_R_list) {
-                        for (c_NR in c_NR_list) {
+                    for (c_u in c_unstim_list) {
+                        for (c_s in c_stim_list) {
                         print("=== Running Simulation with Parameters ===")
-                        print(paste("Parameters: n_samples =", n_samples, ", N =", N, ", w =", w, ", f =", f, ", c_R =", c_R,", c_NR =", c_NR))
+                        print(paste("Parameters: n_samples =", n_samples, ", N =", N, ", w =", w, ", f =", f, ", c_u =", c_u, ", c_s =", c_s))
+                        # Store results from multiple runs
                         # Store results from multiple runs
                         all_roc_mimosa <- list()
                         all_roc_fisher <- list()
-                        all_roc_lrt <- list()
-                        all_auc_fisher <- numeric(n_runs) 
                         
                         # Run multiple simulations
                         for(run in 1:n_runs) {
                             
                             # Get simulation data
-                            params <- calculated_params(mu_u_NR, mu_u_R, f, c_R, c_NR)
-                            dat <- get_sim_data(n_samples, w, params, N )
+                            params <- calculated_params(mu_u_NR, mu_u_R, f, c_u, c_s)
+                            dat <- simulate_data(n_samples, w, params, N, run)
                             # Fit MIMOSA model
                             E <- prepare_for_mimosa(dat$data)
                             if (is.null(E)) {
@@ -91,23 +105,32 @@ for (n_samples in n_samples_list){
                             print("fitting MIMOSA model")
                             #browser()
                             fit <- fit_MIMOSA(E)
-                            # Calculate ROC results
-                            roc_result <- ROC_curve(fit, n_samples, dat)
-                            roc_fisher <- lrt_curve(dat)
-                            #roc_lrt <-lrt_curve(data)
+                             # Calculate ROC results
+                             roc_result <- ROC_curve(fit, dat)
+                             roc_fisher <- fishers_curve(dat)
+
                             all_roc_mimosa[[run]] <- roc_result
-                            all_roc_fisher[[run]] <- roc_fisher$roc_data
-                             all_auc_fisher[run] <- roc_fisher$auc
-                            #all_roc_lrt[[run]] <- roc_lrt
+                            all_roc_fisher[[run]] <- roc_fisher
                         }
                         # Average the curves
                         avg_roc_mimosa <- average_roc_curves(all_roc_mimosa)
                         avg_roc_fisher <- average_roc_curves(all_roc_fisher)
+<<<<<<< HEAD
                         p <- plot_curves(avg_mimosa,avg_fisher,n_samples,
                                          auc_mimosa = avg_mimosa$auc,auc_fisher = avg_fisher$auc
                          )
                         filename<-                                sprintf("plots/ROC_avg_ns%d_N%.0f_w%.2f_f%.0f_cR%.0f_cNR%.0f_runs%d.png",
                     n_samples, N, w, f, c_R, c_NR, n_runs)
+=======
+                        # Plot averaged curves
+                        # Plot averaged curves
+                        p <- plot_curves(MIMOSA = avg_roc_mimosa, 
+                            Fisher = avg_roc_fisher, n_samples = n_samples)
+
+                        filename <- sprintf("plots/ROC_avg_ns%d_N%.0f_w%.2f_f%.0f_cu%.0f_cs%.0f_runs%d.png",
+                                n_samples, N, w, f, c_u, c_s, n_runs)
+
+>>>>>>> refs/remotes/origin/main
                         ggsave(filename, plot = p, width = 8, height = 6, dpi = 300)
                      }
                  }
@@ -117,6 +140,8 @@ for (n_samples in n_samples_list){
  }
 ```
 
+
+Plots the change in cell counts for the responders and non responders. This plot can be used to assessed if realistic data has been generated.
 ```{r}
 
 plot_responder_comparison <- function(sim_result) {
@@ -150,15 +175,22 @@ for (n_samples_val in n_samples_list) {
     for (N_val in N_list) {
         for (w_val in w_list) {
             for (f_val in f_list) {
+<<<<<<< HEAD
                 for (c_R_val in c_R_list) {
                      for (c_NR_val in c_NR_list) {
                           for(run in 1:n_runs) {
                     print(paste("Generating plot for:", "Run =", run
 , ",n_samples =", n_samples_val, 
                                ", N =", N_val, ", w =", w_val, ", f =", f_val, ", c_R =", c_R_val, ", c_NR =", c_NR_val))                   
+=======
+                for (c_u in c_unstim_list) {
+                        for (c_s in c_stim_list) {
+                    print(paste("Generating plot for: n_samples =", n_samples_val, 
+                               ", N =", N_val, ", w =", w_val, ", f =", f_val, ", c_u =", c_u, ", c_s =", c_s))                   
+>>>>>>> refs/remotes/origin/main
                     # Generate data
-                    params <- calculated_params(mu_u_NR, mu_u_R, f_val, c_R_val,c_NR_val)
-                    dat <- get_sim_data(n_samples_val, w_val, params, N_val)
+                    params <- calculated_params(mu_u_NR, mu_u_R, f_val, c_u,c_s)
+                    dat <- simulate_data(n_samples_val, w_val, params, N_val, run)
                     # Plot the cell count distribution by responder status
                     plot <- plot_responder_comparison(dat)
                     # Save plot
@@ -175,4 +207,154 @@ for (n_samples_val in n_samples_list) {
         }
     }
 }
+
 ```
+#Plot the empirical density for simulated data
+```{r}
+# mode: (alpha - 1) / (alpha + beta - 2)
+# their mode:
+# 4.5 / 85 * 4e-4 = 2.12e-5
+# Parameters
+mode_u <- 2.12e-5
+con <- 2.3e4
+alpha_unstim <- 1 + mode_u * (con - 2)
+beta_unstim <- con - alpha_unstim
+mean_uns <- alpha_unstim / con
+
+
+#mu_u_R  <- 0.0000529
+#con     <- 18997
+#alpha_unstim <- con * mu_u_R
+#beta_unstim  <- con * (1 - mu_u_R) 
+
+# Simulate Beta data
+set.seed(2025)
+df <- data.frame(empirical = rbeta(200, alpha_unstim, beta_unstim))
+
+y_height <- 1.5e4
+# Plot
+library(ggplot2)
+plot <- ggplot(df, aes(x = empirical)) +
+  geom_histogram(aes(y = after_stat(density)),
+                 binwidth = 2.3e-05, fill = "lightgrey", color = "black") +
+  stat_function(fun = dbeta,
+                args = list(shape1 = alpha_unstim, shape2 = beta_unstim),
+                color = "blue", linetype = "dotdash", linewidth = 1.2) +
+  labs(x = expression(paste("Empirical ", hat(p)[u])),
+       y = "Density") +
+  theme_bw() +
+  coord_cartesian(xlim = c(0, 6e-04), ylim = c(0, 15000)) +
+  scale_x_continuous(breaks = seq(0, 6e-04, by = 2e-04)) +
+  scale_y_continuous(breaks = seq(0, 15000, by = 3000))
+
+filename <- sprintf("plots/empirical_density.png")
+ggsave(filename, plot = plot, width = 24, height = 12, dpi = 300)
+```
+#Run simulations for varying number of cells
+```{r}
+
+n_samples_list <- c(200)   # Number of participants
+N_list        <- c(10e3, 20e3, 50e3)    # Number of cells per sample
+w_list       <- c(0.5)      # Probability of responder
+f_list       <- c(5)         # Inflation factor
+
+c_stim_list       <- c(209)      # Concentration
+c_unstim_list       <- c(11778)      # Concentration
+
+mu_u_NR <- c(0.0000827)          # Means for non-responders (unstimulated)
+mu_u_R  <- c(0.00308)          # Means for responders (unstimulated)
+
+n_runs   <- 10              # Number of simulation runs
+'''
+
+'''{r}
+# Run analysis
+for (n_samples in n_samples_list) {
+  for (N in N_list) {
+    for (w in w_list) {
+      for (f in f_list) {
+        for (c_u in c_unstim_list) {
+          for (c_s in c_stim_list) {
+
+            print("=== Running Simulation with Parameters ===")
+            print(paste("Parameters: n_samples =", n_samples, ", N =", N, 
+                        ", w =", w, ", f =", f, ", c_u =", c_u, ", c_s =", c_s))
+
+            # Store results from multiple runs
+            all_roc_mimosa <- list()
+            all_roc_fisher <- list()
+
+            # Run multiple simulations
+            for (run in 1:n_runs) {
+
+              # Get simulation data
+              params <- calculated_params(mu_u_NR, mu_u_R, f, c_u, c_s)
+              dat <- simulate_data(n_samples, w, params, N, run)
+
+              # Fit MIMOSA model
+              E <- prepare_for_mimosa(dat$data)
+              if (is.null(E)) {
+                print("E is NULL – skipping this combination")
+                next
+              }
+              print("fitting MIMOSA model")
+              fit <- fit_MIMOSA(E)
+
+              # Calculate ROC results
+              roc_result <- ROC_curve(fit, dat)
+              roc_fisher <- fishers_curve(dat)
+
+              all_roc_mimosa[[run]] <- roc_result
+              all_roc_fisher[[run]] <- roc_fisher
+            }
+
+            # Average the curves
+            avg_roc_mimosa <- average_roc_curves(all_roc_mimosa)
+            avg_roc_fisher <- average_roc_curves(all_roc_fisher)
+
+            # Plot averaged curves
+           p <- plot_curves(MIMOSA = avg_roc_mimosa, 
+                            Fisher = avg_roc_fisher, n_samples = n_samples)
+
+            filename <- sprintf("plots/ROC_avg_ns%d_N%.0f_w%.2f_f%.0f_cu%.0f_cs%.0f_runs%d.png",
+                                n_samples, N, w, f, c_u, c_s, n_runs)
+
+            ggsave(filename, plot = p, width = 8, height = 6, dpi = 300)
+          }
+        }
+      }
+    }
+  }
+}
+'''
+
+'''{r}
+n_samples_list <- c(20, 50, 100, 200)   # Number of participants
+N_list        <- c(10e3)    # Number of cells per sample
+w_list       <- c(0.5)      # Probability of responder
+f_list       <- c(5)         # Inflation factor
+
+c_stim_list       <- c(209)      # Concentration
+c_unstim_list       <- c(11778)      # Concentration
+
+mu_u_NR <- c(0.0000827)          # Means for non-responders (unstimulated)
+mu_u_R  <- c(0.00308)          # Means for responders (unstimulated)
+
+n_runs   <- 10              # Number of simulation runs
+'''
+
+'''{r}
+n_samples_list <- c( 200)   # Number of participants
+N_list        <- c(10e3)    # Number of cells per sample
+w_list       <- c(0.2, 0.4, 0.6, 0.8, 1)      # Probability of responder
+f_list       <- c(5)         # Inflation factor
+
+c_stim_list       <- c(209)      # Concentration
+c_unstim_list       <- c(11778)      # Concentration
+
+mu_u_NR <- c(0.0000827)          # Means for non-responders (unstimulated)
+mu_u_R  <- c(0.00308)          # Means for responders (unstimulated)
+
+n_runs   <- 10              # Number of simulation runs
+'''
+
