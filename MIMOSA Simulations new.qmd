@@ -6,7 +6,7 @@ editor: visual
 ---
 
 ```{r,message=FALSE,warning=FALSE}
-#loading MIMOSA
+#loading MIMOSAy
 #install.packages("devtools") #install devtools package
 library(devtools) #load it
 #install_github("RGLab/MIMOSA",ref="trunk") 
@@ -49,15 +49,15 @@ source("R/simulate_all.R")
 # mu_u_R  <- c(0.10, 0.25, 0.30)    # Means for responders (unstimulated)
 # n_runs_list    <- 10                    # Number of simulation runs
 
-n_samples_list <- c( 200)        # Number of participants
+n_samples_list <- c( 50,100,200)        # Number of participants
 N_list        <- c(50e3)     # Number of cells per sample
 w_list       <- c(0.5)       # Probability of responder
 f_list       <- c(5)           # Inflation factor
 c_R_list  <- c(400)# Concentration
 c_NR_list<-c(26345)
-mu_u_NR <- c(0.004)          # Means for non-responders (unstimulated)
-mu_u_R  <- c(0.004)    # Means for responders (unstimulated), let it be the same
-n_runs   <- 1                    # Number of simulation runs
+mu_u_NR <- c(0.00004)          # Means for non-responders (unstimulated)
+mu_u_R  <- c(0.00207)    # Means for responders (unstimulated), let it be the same
+n_runs   <- 3                 # Number of simulation runs
 ```
 
 ```{r}
@@ -103,11 +103,9 @@ for (n_samples in n_samples_list){
                         # Average the curves
                         avg_roc_mimosa <- average_roc_curves(all_roc_mimosa)
                         avg_roc_fisher <- average_roc_curves(all_roc_fisher)
-                        # Mean AUC across runs
-                        auc_mimosa <- mean(sapply(all_roc_mimosa, function(x) x$auc), na.rm = TRUE)
-                      auc_fisher <- mean(all_auc_fisher, na.rm = TRUE)
-                        # Plot averaged curves
-                        p <- plot_curves(avg_roc_mimosa, avg_roc_fisher, n_samples, auc_mimosa, auc_fisher)
+                        p <- plot_curves(avg_mimosa,avg_fisher,n_samples,
+                                         auc_mimosa = avg_mimosa$auc,auc_fisher = avg_fisher$auc
+                         )
                         filename<-                                sprintf("plots/ROC_avg_ns%d_N%.0f_w%.2f_f%.0f_cR%.0f_cNR%.0f_runs%d.png",
                     n_samples, N, w, f, c_R, c_NR, n_runs)
                         ggsave(filename, plot = p, width = 8, height = 6, dpi = 300)
@@ -148,14 +146,15 @@ plot_responder_comparison <- function(sim_result) {
     return(p1)
 }
 
-
 for (n_samples_val in n_samples_list) {
     for (N_val in N_list) {
         for (w_val in w_list) {
             for (f_val in f_list) {
                 for (c_R_val in c_R_list) {
                      for (c_NR_val in c_NR_list) {
-                    print(paste("Generating plot for: n_samples =", n_samples_val, 
+                          for(run in 1:n_runs) {
+                    print(paste("Generating plot for:", "Run =", run
+, ",n_samples =", n_samples_val, 
                                ", N =", N_val, ", w =", w_val, ", f =", f_val, ", c_R =", c_R_val, ", c_NR =", c_NR_val))                   
                     # Generate data
                     params <- calculated_params(mu_u_NR, mu_u_R, f_val, c_R_val,c_NR_val)
@@ -163,9 +162,12 @@ for (n_samples_val in n_samples_list) {
                     # Plot the cell count distribution by responder status
                     plot <- plot_responder_comparison(dat)
                     # Save plot
-                    filename <- sprintf("plots/cell_counts%d_N%.0f_w%.2f_f%.0f_cR%.0f_cNR%.0f.png", 
-                     n_samples_val, N_val, w_val, f_val, c_R_val, c_NR_val)
+                    filename <- sprintf(
+                "plots/cell_counts%d_N%.0f_w%.2f_f%.0f_cR%.0f_cNR%.0f_run%d.png",
+                n_samples_val, N_val, w_val, f_val, c_R_val, c_NR_val, run
+              )
                     ggsave(filename, plot = plot, width = 12, height = 6, dpi = 300)
+                             }
                     
                   }           
                 }

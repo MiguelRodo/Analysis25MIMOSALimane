@@ -36,8 +36,7 @@ average_roc_curves <- function(roc_list, fpr_grid = seq(0, 1, by = 0.001)) {
   })
 
   if (is.null(dim(tpr_mat))) tpr_mat <- matrix(tpr_mat, ncol = 1)
-
-  data.frame(
+  return(data.frame(
     FPR    = fpr_grid,
     TPR    = rowMeans(tpr_mat, na.rm = TRUE),
     TPR_sd = apply(tpr_mat, 1, stats::sd, na.rm = TRUE),

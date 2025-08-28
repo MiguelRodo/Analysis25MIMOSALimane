@@ -1,5 +1,5 @@
 
-get_sim_data <- function(n_samples, w, params, N) {
+simulate_data <- function(n_samples, w, params, N) {
   set.seed(2025)
   # Extract parameter values from the list
   a_s_R  <- params$a_s_R

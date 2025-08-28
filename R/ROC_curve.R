@@ -31,7 +31,5 @@ ROC_curve <- function(fit, n_samples, data) {
     TPR = roc_coords$sensitivity,      # TPR = Sensitivity
     Threshold = roc_coords$threshold
   )
-
-  
   return(roc_data)
 }
