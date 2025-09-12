@@ -317,3 +317,11 @@ mu_u_R  <- c(0.00308)          # Means for responders (unstimulated)
 n_runs   <- 10              # Number of simulation runs
 '''
 
+
+
+'''{r}
+
+#Plot we are interested in plotting proportion of spikes vs Magnitude of spikes 
+
+'''
+
