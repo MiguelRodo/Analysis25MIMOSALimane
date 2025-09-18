@@ -406,7 +406,18 @@ filename0<- sprintf("plots/plot_pro_spikes.png")
 ggsave(filename0, plot = plot_pro_spikes, width = 24, height = 12, dpi = 300)
 ```
 
+<<<<<<< HEAD
 ```{r}
 filename0<- sprintf("plots/plot_pro_spikes.png")
 ggsave(filename0, plot = plot_pro_spikes, width = 24, height = 12, dpi = 300)
 ```
+=======
+
+
+'''{r}
+
+#Plot we are interested in plotting proportion of spikes vs Magnitude of spikes 
+
+'''
+
+>>>>>>> origin/main
