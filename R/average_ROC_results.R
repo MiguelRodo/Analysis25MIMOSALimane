@@ -9,18 +9,10 @@ average_roc_curves <- function(roc_list, fpr_grid = seq(0, 1, 0.001)) {
     approx(df$FPR, df$TPR, xout = fpr_grid, rule = 2)$y
   })
   if (is.null(dim(tpr_mat))) tpr_mat <- matrix(tpr_mat, ncol = 1)
-<<<<<<< HEAD
-  return(data.frame(
-    FPR    = fpr_grid,
-    TPR    = rowMeans(tpr_mat, na.rm = TRUE),
-    TPR_sd = apply(tpr_mat, 1, stats::sd, na.rm = TRUE),
-    n      = ncol(tpr_mat)
-=======
   avg_roc <- data.frame(
     FPR = fpr_grid,
     TPR = rowMeans(tpr_mat),
     TPR_sd = if (ncol(tpr_mat) > 1) apply(tpr_mat, 1, sd) else NA_real_
->>>>>>> refs/remotes/origin/main
   )
   list(
     avg_roc = avg_roc,
