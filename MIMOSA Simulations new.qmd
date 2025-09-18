@@ -372,6 +372,8 @@ for (mag in spike_magnitudes) {
     beta_stim  <- param_values[2, "alphas.0"]
     # Pseudo-trials ratio from fitted MIMOSA
     pseudo_ratio <- (alpha_stim + beta_stim - 2) / N
+      print(c(alpha_stim, beta_stim, pseudo_ratio))
+
     # Store results
     results_auc <- rbind(results_auc,
                          data.frame(spike_prop = prop, AUC = auc_val, mag = mag))
