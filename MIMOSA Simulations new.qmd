@@ -36,11 +36,11 @@ source("R/ROC_curve.R")
 source("R/fishers_curve.R")
 source("R/LRT_curve.R")
 source("R/simulate_all.R")
+source("R/simulate_data_random")
 
 ```
 
 ```{r}
-<<<<<<< HEAD
 # Parameter lists
 # n_samples_list <- c( 200)        # Number of participants
 # N_list        <- c(10e3, 25e3, 50e3)     # Number of cells per sample
@@ -60,20 +60,6 @@ c_NR_list<-c(26345)
 mu_u_NR <- c(0.00004)          # Means for non-responders (unstimulated)
 mu_u_R  <- c(0.00207)    # Means for responders (unstimulated), let it be the same
 n_runs   <- 3                 # Number of simulation runs
-=======
-n_samples_list <- c( 200)        # Number of participants
-N_list        <- c(10e3)     # Number of cells per sample
-w_list       <- c(0.5)       # Probability of responder
-f_list       <- c(5)           # Inflation factor
-
-c_stim_list       <- c(398)      # Concentration
-c_unstim_list       <- c(26345)      # Concentration
-
-mu_u_NR <- c(3e-05)          # Means for non-responders (unstimulated)
-mu_u_R  <- c(3e-05)          # Means for responders (unstimulated)
-
-n_runs   <- 5                  # Number of simulation runs
->>>>>>> refs/remotes/origin/main
 ```
 
 ```{r}
@@ -116,22 +102,11 @@ for (n_samples in n_samples_list){
                         # Average the curves
                         avg_roc_mimosa <- average_roc_curves(all_roc_mimosa)
                         avg_roc_fisher <- average_roc_curves(all_roc_fisher)
-<<<<<<< HEAD
                         p <- plot_curves(avg_mimosa,avg_fisher,n_samples,
                                          auc_mimosa = avg_mimosa$auc,auc_fisher = avg_fisher$auc
                          )
                         filename<-                                sprintf("plots/ROC_avg_ns%d_N%.0f_w%.2f_f%.0f_cR%.0f_cNR%.0f_runs%d.png",
                     n_samples, N, w, f, c_R, c_NR, n_runs)
-=======
-                        # Plot averaged curves
-                        # Plot averaged curves
-                        p <- plot_curves(MIMOSA = avg_roc_mimosa, 
-                            Fisher = avg_roc_fisher, n_samples = n_samples)
-
-                        filename <- sprintf("plots/ROC_avg_ns%d_N%.0f_w%.2f_f%.0f_cu%.0f_cs%.0f_runs%d.png",
-                                n_samples, N, w, f, c_u, c_s, n_runs)
-
->>>>>>> refs/remotes/origin/main
                         ggsave(filename, plot = p, width = 8, height = 6, dpi = 300)
                      }
                  }
@@ -176,19 +151,12 @@ for (n_samples_val in n_samples_list) {
     for (N_val in N_list) {
         for (w_val in w_list) {
             for (f_val in f_list) {
-<<<<<<< HEAD
                 for (c_R_val in c_R_list) {
                      for (c_NR_val in c_NR_list) {
                           for(run in 1:n_runs) {
                     print(paste("Generating plot for:", "Run =", run
 , ",n_samples =", n_samples_val, 
                                ", N =", N_val, ", w =", w_val, ", f =", f_val, ", c_R =", c_R_val, ", c_NR =", c_NR_val))                   
-=======
-                for (c_u in c_unstim_list) {
-                        for (c_s in c_stim_list) {
-                    print(paste("Generating plot for: n_samples =", n_samples_val, 
-                               ", N =", N_val, ", w =", w_val, ", f =", f_val, ", c_u =", c_u, ", c_s =", c_s))                   
->>>>>>> refs/remotes/origin/main
                     # Generate data
                     params <- calculated_params(mu_u_NR, mu_u_R, f_val, c_u,c_s)
                     dat <- simulate_data(n_samples_val, w_val, params, N_val, run)
@@ -280,144 +248,123 @@ print(paste("Parameters: n_samples =", n_samples, ", N =", N,
 
 ```
 
-```{i}
-{r}
-library(ggplot2)
-library(pROC)
-library(MIMOSA)
-set.seed(2025)
-# Simulation Parameters
-n_cells <- 10000   # total number of cells
-n_trials <- 200           # trials per cell
-#n_samples <- n_samples_list[1]
-#N         <- N_list[1]
-#w         <- w_list[1]
-#f         <- f_list[1]
-#c_u       <- c_unstim_list[1]
-#c_s       <- c_stim_list[1]
-#run <- 1
-#print("=== Running Simulation with Parameters ===")/noise
-spike_magnitudes <- seq(0.01, 0.1, by = 0.05)  # magnitude of spike (mean of spike)
-min_baseline <- 0.01  # original lower bound for baseline probabilitieslls * prop)
-  }
-}
-# Line Plots, AUC vs Proportion of Spikes
-plot_AUC_spikes<-ggplot(results_auc, aes(x = spike_prop, y = AUC, color = factor(mag))) +
-  geom_line(size = 1) +
-  labs(title = "AUC vs Proportion of Spikes",
-       x = "Proportion of Spikes",
-       y = "AUC",
-       color = "Spike Magnitude") +
-  theme_minimal()
-filename <- sprintf("plots/plot_AUC_spikes.png")
-ggsave(filename, plot = plot_AUC_spikes, width = 24, height = 12, dpi = 300)
-# Pseudo-trials ratio vs Proportion of Spikes
-plot_pro_spikes<-ggplot(results_pseudo, aes(x = spike_prop, y = PseudoRatio, color = factor(mag))) +
-  geom_line(size = 1) +
-  labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
-       x = "Proportion of Spikes",
-       y = "(α + β - 2)/n (pseudo trials)",
-       color = "Spike Magnitude") +
-  theme_minimal()
-filename <- sprintf("plots/plot_pro_spikes.png")
-ggsave(filename, plot = plot_pro_spikes, width = 24, height = 12, dpi = 300)
-```
 
 ```{r}
+#install.packages("cowplot")
+library(cowplot)
 library(ggplot2)
 library(pROC)
 library(MIMOSA)
+library(dplyr)
+library(tibble)
 set.seed(2025)
-n_cells <- 10000 
-n_trials <- 200  
-spike_props <- seq(0.01, 0.1, by = 0.03)       # proportion of spikes
-spike_magnitudes <- c(0.01,0.05)  # magnitude of spike (mean of spike)
-min_baseline <- 0.01  # original lower bound for baseline probs
-max_baseline <- 0.05  # original upper bound
-# storage
+# Parameters
+spike_props <- seq(0, 0.2, by = 0.04)    # Proportion of spiked samples
+magnitude_spikes <- c(0.5, 2, 3)         # Multiplicative magnitudes
+N <- 300                               # Number of cells
+n_samples <- 20                         # Number of samples
+w <- 0.5                                 # weight for responders (example)
+run <- 1
+
+# Storage
 results_auc <- data.frame()
 results_pseudo <- data.frame()
-# Simulation Loop
-for (mag in spike_magnitudes) {
-  for (prop in spike_props) {
-    n_spike <- round(n_cells * prop)
-    n_normal <- n_cells - n_spike
-    p_normal <- runif(n_normal, min_baseline, max_baseline)
-    # Spike cells (mean of spike magnitude)
-    p_spike <- runif(n_spike, mag, mag + 0.05)
-    p_spike[p_spike > 1] <- 1  # ensure prob is less than 1
-     # Combine 
-    p_all <- c(p_normal, p_spike)
-    labels <- c(rep(0, n_normal), rep(1, n_spike))  # 0 = baseline, 1 = spike
-    # Binomial counts
-    X <- rbinom(n_cells, size = n_trials, prob = p_all)
-    # AUC calculation
-    if(length(unique(labels)) > 1) {
-      roc_obj <- roc(response = factor(labels, levels = c(0,1)),
-                  predictor = X, direction = "<")
-      auc_val <- as.numeric(roc_obj$auc)
-    } else auc_val <- NA
-    # Prepare data and simulate
+base_mu_u_NR <- mu_u_NR
+base_mu_u_R  <- mu_u_R
+options(expressions = 500000)  #to solve C stack error
+for (spike in spike_props) {
+  for (magnitude in magnitude_spikes) {
+    mu_u_NR <- base_mu_u_NR
+    mu_u_R  <- base_mu_u_R
+    n_spike <- round(n_samples * spike)
+    n_normal <- n_samples - n_spike
+    # Normal data 
     params <- calculate_params(mu_u_NR, mu_u_R, f, c_u, c_s)
-      dat <- simulate_data(n_samples, w, params, N, run)
-    # Fit MIMOSA model
-    E <- prepare_for_mimosa(dat$data)
-    print("fitting MIMOSA model")
+    dat <- simulate_data(n_normal, w, params, N, run)
+    #  Spiked data 
+    # Spiked data (only if n_spike > 0)
+    if (n_spike > 0) {
+      if (rbinom(1, 1, 0.5) == 1) {
+        mu_u_NR <- mu_u_NR * magnitude 
+      } else {
+        mu_u_R <- mu_u_R * magnitude
+      }
+      rand_params <- calculate_params(mu_u_NR, mu_u_R, f, c_u, c_s)
+      data_all <- rbind(dat$data, rand_dat$data)
+  responder_all <- c(dat$responder_status, rand_dat$responder_status)
+    } else {
+      data_all <- dat$data
+      responder_all <- dat$responder_status
+    }
+    # Fit MIMOSA 
+    E <- prepare_for_mimosa(data_all)
     fit <- fit_MIMOSA(E)
-    # Extract alpha/beta for stimulated sample (row 2)
     mimosa_obj <- fit$IL2
-     res <- mimosa_obj@result
+    res <- mimosa_obj@result
     param_values <- res@params
     alpha_stim <- param_values[2, "alphas.1"]
     beta_stim  <- param_values[2, "alphas.0"]
-    # Pseudo-trials ratio from fitted MIMOSA
+    # Pseudo-trials ratio 
     pseudo_ratio <- (alpha_stim + beta_stim - 2) / N
-      print(c(alpha_stim, beta_stim, pseudo_ratio))
+    # AUC (using true labels: 0=normal, 1=spike) 
+    labels <- c(rep(0, n_normal), rep(1, n_spike))
+    # Get posterior probability that each sample is a responder
+    prob_mat <- res@z
+    pheno <- res@phenoData@data
+    df <- bind_cols(pheno, as_tibble(prob_mat)) |>
+          mutate(pid_ind = as.numeric(sub("Subject_", "", SUBJECTID))) |>
+          arrange(pid_ind)
+    
+    resp_df <- tibble(
+      pid_ind = seq_along(responder_all),
+      resp_status = responder_all
+    )
+    
+    df_unique <- df %>%
+  group_by(SUBJECTID) %>%
+  summarize(mimosa_prob = mean(mimosa_prob), .groups = "drop")
 
-    # Store results
-    results_auc <- rbind(results_auc,
-                         data.frame(spike_prop = prop, AUC = auc_val, mag = mag))
+prob_scores <- df_unique$mimosa_prob
+labels <- responder_all
+   
+    if (length(unique(labels)) > 1) {
+      roc_obj <- roc(response = factor(labels, levels = c(0,1)),
+                     predictor = prob_scores,
+                     direction = "<")
+      auc_val <- as.numeric(roc_obj$auc)
+    } else {
+      auc_val <- NA
+    }
+    # Save results
+    results_auc <- rbind(results_auc, 
+                         data.frame(spike_props = spike,
+                                    magnitude_spikes = magnitude,
+                                    AUC = auc_val))
     results_pseudo <- rbind(results_pseudo,
-                            data.frame(spike_prop = prop, PseudoRatio = pseudo_ratio, mag = mag))
+                            data.frame(spike_props = spike,
+                                       magnitude_spikes = magnitude,
+                                       PseudoRatio = pseudo_ratio))
+    rm(fit, mimosa_obj, res, E, data_all)
+    gc()
   }
 }
-# Line Plots, AUC vs Proportion of Spikes
-plot_AUC_spikes<-ggplot(results_auc, aes(x = spike_prop, y = AUC, color = factor(mag))) +
-  geom_line(size = 1.2) +
+# Plot  AUC vs Proportion of Spikes 
+plot_auc <- ggplot(results_auc, aes(x = spike_props, y = AUC, color = factor(magnitude))) +
+  geom_line(na.rm=TRUE) +
   labs(title = "AUC vs Proportion of Spikes",
        x = "Proportion of Spikes",
        y = "AUC",
-       color = "Spike Magnitude") +
-theme_classic(base_size = 14)
-filename1 <- sprintf("plots/plot_AUC_spikes.png")
-ggsave(filename1, plot = plot_AUC_spikes, width = 24, height = 12, dpi = 300)
-# Pseudo-trials ratio vs Proportion of Spikes
-plot_pro_spikes<-ggplot(results_pseudo, aes(x = spike_prop, y = PseudoRatio, color = factor(mag))) +
-  geom_line(size = 1.2) +
-labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
+       color = "Magnitude") +
+  theme_bw()+cowplot::theme_cowplot()
+# Plot Pseudo-cells ratio vs Proportion of Spikes 
+plot_pseudo <- ggplot(results_pseudo, aes(x = spike_props, y = PseudoRatio, color = factor(magnitude_spikes))) +
+  geom_line(na.rm=TRUE) +
+  labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
        x = "Proportion of Spikes",
-       y = "(α + β - 2)/n (pseudo trials)",
-       color = "Spike Magnitude") +
-  theme_classic(base_size = 14)
-filename0<- sprintf("plots/plot_pro_spikes.png")
-ggsave(filename0, plot = plot_pro_spikes, width = 24, height = 12, dpi = 300)
- 
-filename0<- sprintf("plots/plot_pro_spikes.png")
-ggsave(filename0, plot = plot_pro_spikes, width = 24, height = 12, dpi = 300)
+       y = "Number of Pseudo cells/Real cells",
+       color = "Magnitude") +
+  theme_bw()+cowplot::theme_cowplot()
+# Save
+ggsave("plots/plot_auc.png", plot = plot_auc, width = 6, height = 4, dpi = 300)
+ggsave("plots/plot_pseudo.png", plot = plot_pseudo, width = 6, height = 4, dpi = 300)
 ```
-
-<<<<<<< HEAD
-```{r}
-filename0<- sprintf("plots/plot_pro_spikes.png")
-ggsave(filename0, plot = plot_pro_spikes, width = 24, height = 12, dpi = 300)
-```
-=======
-
-
-'''{r}
-
-#Plot we are interested in plotting proportion of spikes vs Magnitude of spikes 
-
-'''
-
->>>>>>> origin/main
