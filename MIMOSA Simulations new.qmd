@@ -323,7 +323,8 @@ for (spike in spike_props) {
     df_unique <- df %>%
   group_by(SUBJECTID) %>%
   summarize(mimosa_prob = mean(mimosa_prob), .groups = "drop")
-
+#roc_obj <- pROC::roc(df$resp_status, df$mimosa_prob, quiet = TRUE)
+#auc_value <- as.numeric(pROC::auc(roc_obj))
 prob_scores <- df_unique$mimosa_prob
 labels <- responder_all
    
@@ -367,4 +368,5 @@ plot_pseudo <- ggplot(results_pseudo, aes(x = spike_props, y = PseudoRatio, colo
 # Save
 ggsave("plots/plot_auc.png", plot = plot_auc, width = 6, height = 4, dpi = 300)
 ggsave("plots/plot_pseudo.png", plot = plot_pseudo, width = 6, height = 4, dpi = 300)
+
 ```
