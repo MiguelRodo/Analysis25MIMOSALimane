@@ -1,4 +1,4 @@
-fishers_curve<- function(data, alpha = 0.05) {
+fishers_curve <- function(data, alpha = 0.05) {
   df_raw   <- data$data
   resp_vec <- data$responder_status
   subjects <- unique(df_raw$SUBJECTID)
