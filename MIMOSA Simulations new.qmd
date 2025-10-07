@@ -176,7 +176,7 @@ for (n_samples_val in n_samples_list) {
 
 ```
 
-#Plot the empirical density for simulated data
+# Plot the empirical density for simulated data
 
 ```{r}
 # mode: (alpha - 1) / (alpha + beta - 2)
@@ -267,10 +267,10 @@ run <- 1
 results_auc <- data.frame()
 results_pseudo <- data.frame()
 base_mu_u_NR <- mu_u_NR
-base_mu_u_R  <- mu_u_R
 options(expressions = 500000)  #to solve C stack error
 for (spike in spike_props) {
   for (magnitude in magnitude_spikes) {
+    # browser()
     mu_u_NR <- base_mu_u_NR
     mu_u_R  <- base_mu_u_R
     n_spike <- round(n_samples * spike)
@@ -288,7 +288,7 @@ for (spike in spike_props) {
       }
       rand_params <- calculate_params(mu_u_NR, mu_u_R, f, c_u, c_s)
       data_all <- rbind(dat$data, rand_dat$data)
-  responder_all <- c(dat$responder_status, rand_dat$responder_status)
+      responder_all <- c(dat$responder_status, rand_dat$responder_status)
     } else {
       data_all <- dat$data
       responder_all <- dat$responder_status

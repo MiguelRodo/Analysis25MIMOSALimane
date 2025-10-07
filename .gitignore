@@ -7,8 +7,18 @@ output[0-9]*.txt
 *.dat
 *.datP
 # Start of projr section: do not edit by hand (update with projr_ignore_auto())
-_archive/**
+_raw_data/**
+_tmp/**
+_output/**
+docs/**
+MIMOSA Simulations Option 2.html
+MIMOSA Posterior Probabilities.pdf/**
+MIMOSA Simulations new_files/**
+MIMOSA Simulations new.html/**
+MIMOSA Simulations.pdf/**
 # End of projr section
 
 .Rproj.user
 _tmp/log/sbatch/run_analysis
+plots/empirical_density.png
+

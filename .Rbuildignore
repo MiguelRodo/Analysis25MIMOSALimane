@@ -11,8 +11,20 @@
 ^docs/
 ^docs$
 ^_projr\.yml$
+^MIMOSA Posterior Probabilities\.qmd$
+^MIMOSA Simulations new\.qmd$
+^MIMOSA Simulations\.qmd$
 ^README\.Rmd$
-^_archive/
-^_archive$
+^Analysis25MIMOSALimane\.Rproj$
+^MIMOSA Simulations Option 2\.html$
+^output\.txt$
+^MIMOSA Posterior Probabilities\.pdf/
+^MIMOSA Posterior Probabilities\.pdf$
+^MIMOSA Simulations new_files/
+^MIMOSA Simulations new_files$
+^MIMOSA Simulations new\.html/
+^MIMOSA Simulations new\.html$
+^MIMOSA Simulations\.pdf/
+^MIMOSA Simulations\.pdf$
 # End of projr section
 
