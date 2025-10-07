@@ -2,7 +2,6 @@
 title: "MIMOSA Simulations"
 format: 
   html: default
-editor: visual
 ---
 
 ```{r,message=FALSE,warning=FALSE}
@@ -17,7 +16,6 @@ library(dplyr)
 library(tidyr)
 install.packages("pROC", repos = "https://cloud.r-project.org/")
 library(pROC)
-
 ```
 
 Parameters
@@ -121,7 +119,6 @@ for (n_samples in n_samples_list){
 ```
 
 ```{r}
-
 plot_responder_comparison <- function(sim_result) {
   # Get data and responder status
   data <- sim_result$data
@@ -176,4 +173,3 @@ for (n_samples_val in n_samples_list) {
 }
 
 ```
-
