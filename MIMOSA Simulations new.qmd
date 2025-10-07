@@ -33,8 +33,8 @@ source("R/average_ROC_results.R")
 source("R/ROC_curve.R")
 source("R/fishers_curve.R")
 source("R/LRT_curve.R")
-source("R/simulate_all.R")
-source("R/simulate_data_random")
+# source("R/simulate_all.R")
+source("R/simulate_data_random.R")
 
 ```
 
