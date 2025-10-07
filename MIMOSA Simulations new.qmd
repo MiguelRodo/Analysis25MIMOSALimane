@@ -35,7 +35,6 @@ source("R/fishers_curve.R")
 source("R/LRT_curve.R")
 # source("R/simulate_all.R")
 source("R/simulate_data_random.R")
-
 ```
 
 ```{r}
@@ -58,6 +57,8 @@ c_NR_list<-c(26345)
 mu_u_NR <- c(0.00004)          # Means for non-responders (unstimulated)
 mu_u_R  <- c(0.00207)    # Means for responders (unstimulated), let it be the same
 n_runs   <- 3                 # Number of simulation runs
+c_stim_list       <- c(85000)     # Concentration
+c_unstim_list       <- c(23000)      # Concentration
 ```
 
 ```{r}
@@ -224,8 +225,7 @@ n_samples_list <- c(200)   # Number of participants
 N_list        <- c(10e3)    # Number of cells per sample
 w_list       <- c(0.5)      # Probability of responder
 f_list       <- c(4)         # Inflation factor
-c_stim_list       <- c(85000)     # Concentration
-c_unstim_list       <- c(23000)      # Concentration
+
 mu_u_NR <- c(6.467642e-05) 
 mu_u_R <- c(6.467642e-05)         # Means for responders
 
@@ -267,6 +267,7 @@ run <- 1
 results_auc <- data.frame()
 results_pseudo <- data.frame()
 base_mu_u_NR <- mu_u_NR
+base_mu_u_R  <- mu_u_R
 options(expressions = 500000)  #to solve C stack error
 for (spike in spike_props) {
   for (magnitude in magnitude_spikes) {
