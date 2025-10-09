@@ -15,8 +15,9 @@ library(ggplot2)
 library(MIMOSA) 
 library(dplyr)
 library(tidyr)
-install.packages("pROC", repos = "https://cloud.r-project.org/")
 library(pROC)
+library(cowplot)
+library(tibble)
 ```
 
 Parameters
@@ -62,6 +63,7 @@ c_unstim_list       <- c(23000)      # Concentration
 ```
 
 ```{r}
+#| eval: false
 # Run analysis
 for (n_samples in n_samples_list){
         for (N in N_list) {
@@ -118,6 +120,7 @@ for (n_samples in n_samples_list){
 Plots the change in cell counts for the responders and non responders. This plot can be used to assessed if realistic data has been generated.code below.
 
 ```{r}
+#| eval: false
 plot_responder_comparison <- function(sim_result) {
   # Get data and responder status
   data <- sim_result$data
@@ -180,6 +183,7 @@ for (n_samples_val in n_samples_list) {
 # Plot the empirical density for simulated data
 
 ```{r}
+#| eval: false
 # mode: (alpha - 1) / (alpha + beta - 2)
 # their mode:
 # 4.5 / 85 * 4e-4 = 2.12e-5
@@ -248,12 +252,7 @@ print(paste("Parameters: n_samples =", n_samples, ", N =", N,
 
 ```{r}
 #install.packages("cowplot")
-library(cowplot)
-library(ggplot2)
-library(pROC)
-library(MIMOSA)
-library(dplyr)
-library(tibble)
+
 set.seed(2025)
 # Parameters
 spike_props <- seq(0, 0.2, by = 0.04)    # Proportion of spiked samples
@@ -271,7 +270,7 @@ base_mu_u_R  <- mu_u_R
 options(expressions = 500000)  #to solve C stack error
 for (spike in spike_props) {
   for (magnitude in magnitude_spikes) {
-    # browser()
+    browser()
     mu_u_NR <- base_mu_u_NR
     mu_u_R  <- base_mu_u_R
     n_spike <- round(n_samples * spike)
@@ -279,7 +278,7 @@ for (spike in spike_props) {
     # Normal data 
     params <- calculate_params(mu_u_NR, mu_u_R, f, c_u, c_s)
     dat <- simulate_data(n_normal, w, params, N, run)
-    #  Spiked data 
+    # Spiked data 
     # Spiked data (only if n_spike > 0)
     if (n_spike > 0) {
       if (rbinom(1, 1, 0.5) == 1) {
