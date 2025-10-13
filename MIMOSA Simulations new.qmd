@@ -252,11 +252,12 @@ print(paste("Parameters: n_samples =", n_samples, ", N =", N,
 
 ```{r}
 #install.packages("cowplot")
-
 set.seed(2025)
 # Parameters
 spike_props <- seq(0, 0.2, by = 0.04)    # Proportion of spiked samples
-magnitude_spikes <- seq(mu_u_NR, mu_u_R * 3)        # Multiplicative magnitudes
+magnitude_spikes <- seq(mu_u_NR, mu_u_R * 3,length.out=3)        # Multiplicative magnitudes
+base_mu_u_NR <- mu_u_NR
+base_mu_u_R  <- mu_u_NR  * 5
 N <- 1e4                               # Number of cells
 n_samples <- 20                         # Number of samples
 w <- 0.5                                 # weight for responders (example)
@@ -265,11 +266,9 @@ run <- 1
 # Storage
 results_auc <- data.frame()
 results_pseudo <- data.frame()
-base_mu_u_NR <- mu_u_NR
-base_mu_u_R  <- mu_u_NR  * 5
 for (spike in spike_props) {
   for (magnitude in magnitude_spikes) {
-    browser()
+    cat("Running spike =", spike, "magnitude =", magnitude, "\n")
     mu_u_NR <- base_mu_u_NR
     mu_u_R  <- base_mu_u_R
     n_spike <- round(n_samples * spike)
@@ -293,16 +292,18 @@ for (spike in spike_props) {
       data_all <- dat$data
       responder_all <- dat$responder_status
     }
+    cat("Running spike =", spike, "magnitude =", magnitude, "\n")
+
     # Fit MIMOSA 
     E <- prepare_for_mimosa(data_all)
     fit <- fit_MIMOSA(E)
     mimosa_obj <- fit$IL2
     res <- mimosa_obj@result
-    # param_values <- res@params
-    # alpha_stim <- param_values[2, "alphas.1"]
-    # eta_stim  <- param_values[2, "alphas.0"]
+    param_values <- res@params
+    alpha_stim <- param_values[2, "alphas.1"]
+    beta_stim  <- param_values[2, "alphas.0"]
     # Pseudo-trials ratio 
-    # pseudo_ratio <- (alpha_stim + beta_stim - 2) / N
+     pseudo_ratio <- (alpha_stim + beta_stim - 2) / N
     # AUC (using true labels: 0=normal, 1=spike) 
     labels <- c(rep(0, n_normal), rep(1, n_spike))
     # Get posterior probability that each sample is a responder
@@ -343,30 +344,30 @@ for (spike in spike_props) {
                          data.frame(spike_props = spike,
                                     magnitude_spikes = magnitude,
                                     AUC = auc_val))
-    #results_pseudo <- rbind(results_pseudo,
-                            #data.frame(spike_props = spike,
-                                       #magnitude_spikes = magnitude,
-                                       #PseudoRatio = pseudo_ratio))
+    results_pseudo <- rbind(results_pseudo,
+                            data.frame(spike_props = spike,
+                                       magnitude_spikes = magnitude,
+                                       PseudoRatio = pseudo_ratio))
   }
 }
 # Plot  AUC vs Proportion of Spikes 
-plot_auc <- ggplot(results_auc, aes(x = spike_props, y = AUC, color = factor(magnitude))) +
+plot_auc <- ggplot(results_auc, aes(x = spike_props, y = AUC, color = factor(magnitude_spikes))) +
   geom_line(na.rm=TRUE) +
   labs(title = "AUC vs Proportion of Spikes",
        x = "Proportion of Spikes",
        y = "AUC",
-       color = "Magnitude") +
+       color = "Magnitude of Noise") +
   theme_bw()+cowplot::theme_cowplot()
 # Plot Pseudo-cells ratio vs Proportion of Spikes 
-#plot_pseudo <- ggplot(results_pseudo, aes(x = spike_props, y = PseudoRatio, color = factor(magnitude_spikes))) +
-  #geom_line(na.rm=TRUE) +
-  #labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
-       #x = "Proportion of Spikes",
-       #y = "Number of Pseudo cells/Real cells",
-       #color = "Magnitude") +
-  #theme_bw()+cowplot::theme_cowplot()
+plot_pseudo <- ggplot(results_pseudo, aes(x = spike_props, y = PseudoRatio, color = factor(magnitude_spikes))) +
+  geom_line(na.rm=TRUE) +
+  labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
+       x = "Proportion of Spikes",
+       y = "Pseudo-trials/Real cells",
+       color = "Magnitude of Noise") +
+  theme_bw()+cowplot::theme_cowplot()
 # Save
 ggsave("plots/plot_auc.png", plot = plot_auc, width = 6, height = 4, dpi = 300)
-#ggsave("plots/plot_pseudo.png", plot = plot_pseudo, width = 6, height = 4, dpi = 300)
+ggsave("plots/plot_pseudo.png", plot = plot_pseudo, width = 6, height = 4, dpi = 300)
 
 ```
