@@ -342,11 +342,11 @@ for (spike in spike_props) {
     # Save results
     results_auc <- rbind(results_auc, 
                          data.frame(spike_props = spike,
-                                    magnitude_spikes = magnitude,
+                                    magnitude_spikes = round(magnitude,4),
                                     AUC = auc_val))
     results_pseudo <- rbind(results_pseudo,
                             data.frame(spike_props = spike,
-                                       magnitude_spikes = magnitude,
+                                       magnitude_spikes = round(magnitude,4),
                                        PseudoRatio = pseudo_ratio))
   }
 }
