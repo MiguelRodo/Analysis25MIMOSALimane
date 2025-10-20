@@ -49,16 +49,16 @@ source("R/simulate_data_random.R")
 # mu_u_R  <- c(0.10, 0.25, 0.30)    # Means for responders (unstimulated)
 # n_runs_list    <- 10                    # Number of simulation runs
 
-n_samples_list <- c( 50,100,200)        # Number of participants
+n_samples_list <- c( 200)        # Number of participants
 N_list        <- c(50e3)     # Number of cells per sample
 w_list       <- c(0.5)       # Probability of responder
-f_list       <- c(5)           # Inflation factor
-c_R_list  <- c(400)# Concentration
-c_NR_list<-c(26345)
-mu_u_NR <- c(0.00004)          # Means for non-responders (unstimulated)
-mu_u_R  <- c(0.00207)    # Means for responders (unstimulated), let it be the same
-n_runs   <- 3                 # Number of simulation runs
-c_stim_list       <- c(400)     # Concentration
+f_list       <- c(4)           # Inflation factor
+#c_R_list  <- c(400)# Concentration
+#c_NR_list<-c(26345)
+mu_u_NR <- c(6.467642e-05)          # Means for non-responders (unstimulated)
+mu_u_R  <- c(6.467642e-05)    # Means for responders (unstimulated), let it be the same
+n_runs   <- 10               # Number of simulation runs
+c_stim_list       <- c(85000)     # Concentration
 c_unstim_list       <- c(23000)      # Concentration
 ```
 
@@ -226,14 +226,15 @@ ggsave(filename, plot = plot, width = 24, height = 12, dpi = 300)
 
 ```{r}
 n_samples_list <- c(200)   # Number of participants
-N_list        <- c(10e3)    # Number of cells per sample
+N_list        <- c(50e3)    # Number of cells per sample
 w_list       <- c(0.5)      # Probability of responder
 f_list       <- c(4)         # Inflation factor
 
 mu_u_NR <- 6.467642e-05 
-mu_u_R <- 0.00207         # Means for responders
 
-n_runs   <- 10             # Number of simulation runs
+mu_u_R  <- c(0.00207)           # Means for responders
+
+n_runs   <- 1           # Number of simulation runs
 
 
 n_samples <- n_samples_list[1]
@@ -258,14 +259,14 @@ spike_props <- seq(0, 0.2, by = 0.04)    # Proportion of spiked samples
 magnitude_spikes <- seq(mu_u_NR, mu_u_R * 3,length.out=3)        # Multiplicative magnitudes
 base_mu_u_NR <- mu_u_NR
 base_mu_u_R  <- mu_u_NR  * 5
-N <- 1e4                               # Number of cells
-n_samples <- 20                         # Number of samples
+N <- 50e4                               # Number of cells
+n_samples <- 200                       # Number of samples
 w <- 0.5                                 # weight for responders (example)
-run <- 1
-
-# Storage
+run <- 1 #using 3 because we want it to run faster
+#Storage
 results_auc <- data.frame()
-results_pseudo <- data.frame()
+results_pseudo_stim <- data.frame()
+results_pseudo_unstim <- data.frame()
 for (spike in spike_props) {
   for (magnitude in magnitude_spikes) {
     cat("Running spike =", spike, "magnitude =", magnitude, "\n")
@@ -302,8 +303,11 @@ for (spike in spike_props) {
     param_values <- res@params
     alpha_stim <- param_values[2, "alphas.1"]
     beta_stim  <- param_values[2, "alphas.0"]
+    alpha_unstim <- param_values[1, "alphas.1"]
+    beta_unstim  <- param_values[1, "alphas.0"]
     # Pseudo-trials ratio 
-     pseudo_ratio <- (alpha_stim + beta_stim - 2) / N
+     pseudo_ratio_stim <- (alpha_stim + beta_stim - 2) / N
+     pseudo_ratio_unstim <- (alpha_unstim + beta_unstim - 2) / N
     # AUC (using true labels: 0=normal, 1=spike) 
     labels <- c(rep(0, n_normal), rep(1, n_spike))
     # Get posterior probability that each sample is a responder
@@ -342,12 +346,17 @@ for (spike in spike_props) {
     # Save results
     results_auc <- rbind(results_auc, 
                          data.frame(spike_props = spike,
-                                    magnitude_spikes = round(magnitude,4),
+                                    magnitude_spikes = round(magnitude,6),
                                     AUC = auc_val))
-    results_pseudo <- rbind(results_pseudo,
+    results_pseudo_stim <- rbind(results_pseudo_stim,
                             data.frame(spike_props = spike,
-                                       magnitude_spikes = round(magnitude,4),
-                                       PseudoRatio = pseudo_ratio))
+                                       magnitude_spikes = round(magnitude,6),
+                                       PseudoRatio = pseudo_ratio_stim
+                                       ))
+    results_pseudo_unstim <- rbind(results_pseudo_unstim,
+                            data.frame(spike_props = spike,
+                                       magnitude_spikes = round(magnitude,6),
+                                       PseudoRatio = pseudo_ratio_unstim))
   }
 }
 # Plot  AUC vs Proportion of Spikes 
@@ -359,15 +368,23 @@ plot_auc <- ggplot(results_auc, aes(x = spike_props, y = AUC, color = factor(mag
        color = "Magnitude of Noise") +
   theme_bw()+cowplot::theme_cowplot()
 # Plot Pseudo-cells ratio vs Proportion of Spikes 
-plot_pseudo <- ggplot(results_pseudo, aes(x = spike_props, y = PseudoRatio, color = factor(magnitude_spikes))) +
+plot_pseudo_stim <- ggplot(results_pseudo_stim, aes(x = spike_props, y = PseudoRatio, color = factor(magnitude_spikes))) +
   geom_line(na.rm=TRUE) +
-  labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
+  labs(title = "Stimulated(Activated):Pseudo-trials ratio vs Proportion of Spikes",
+       x = "Proportion of Spikes",
+       y = "Pseudo-trials/Real cells",
+       color = "Magnitude of Noise") +
+  theme_bw()+cowplot::theme_cowplot()
+plot_pseudo_unstim <- ggplot(results_pseudo_unstim, aes(x = spike_props, y = PseudoRatio, color = factor(magnitude_spikes))) +
+  geom_line(na.rm=TRUE) +
+  labs(title = "Unstimulated(Resting):Pseudo-trials ratio vs Proportion of Spikes",
        x = "Proportion of Spikes",
        y = "Pseudo-trials/Real cells",
        color = "Magnitude of Noise") +
   theme_bw()+cowplot::theme_cowplot()
 # Save
 ggsave("plots/plot_auc.png", plot = plot_auc, width = 6, height = 4, dpi = 300)
-ggsave("plots/plot_pseudo.png", plot = plot_pseudo, width = 6, height = 4, dpi = 300)
+ggsave("plots/plot_pseudo_stim.png", plot = plot_pseudo_stim, width = 6, height = 4, dpi = 300)
+ggsave("plots/plot_pseudo_unstim.png", plot = plot_pseudo_unstim, width = 6, height = 4, dpi = 300)
 
 ```
