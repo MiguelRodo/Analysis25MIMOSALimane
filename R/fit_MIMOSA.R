@@ -5,8 +5,8 @@ fit_MIMOSA <- function(data, mtd = "mcmc") {
     data = data,
     subset = RefTreat == "Treatment" & CYTOKINE == "IL2",
     ref = RefTreat == "Reference" & CYTOKINE == "IL2",
-    RT = FALSE,
-    method = mtd
+    method = mtd,
+    RT = FALSE
   )
   sink(NULL)
   fit
