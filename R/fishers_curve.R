@@ -41,7 +41,33 @@ fishers_curve <- function(data, alpha = 0.05) {
   auc_value <- as.numeric(pROC::auc(roc_obj))
   
   return(list(
-    roc_data = roc_data,   
+    roc_data = roc_data,
     auc = auc_value
   ))
+}
+
+fishers_auc <- function(.data, status, alternative = "less") {
+  n_subject <- length(status)
+  p_vec <- purrr::map_dbl(seq_len(n_subject), function(i) {
+    uns_row <- .data[i, ]
+    uns_cyt <- uns_row$CYTNUM
+    uns_nsub <- uns_row$NSUB
+    stim_row <- .data[i + n_subject, ]
+    stim_cyt <- stim_row$CYTNUM
+    stim_nsub <- stim_row$NSUB
+    cont_table <- matrix(
+      c(uns_cyt, uns_nsub,
+        stim_cyt,   stim_nsub),
+      nrow = 2, byrow = TRUE
+    )
+    ft <- stats::fisher.test(cont_table, alternative = "less")
+    ft$p.value
+  })
+  roc_obj <- pROC::roc(
+    response  = status,
+    predictor = 1 - p_vec,
+    levels    = c(0, 1),
+    direction = "<"
+  )
+  as.numeric(pROC::auc(roc_obj))
 }

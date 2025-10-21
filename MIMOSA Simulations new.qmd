@@ -49,15 +49,15 @@ source("R/simulate_data_random.R")
 # mu_u_R  <- c(0.10, 0.25, 0.30)    # Means for responders (unstimulated)
 # n_runs_list    <- 10                    # Number of simulation runs
 
-n_samples_list <- c( 50,100,200)        # Number of participants
+n_samples_list <- c( 200)        # Number of participants
 N_list        <- c(50e3)     # Number of cells per sample
 w_list       <- c(0.5)       # Probability of responder
-f_list       <- c(5)           # Inflation factor
-c_R_list  <- c(400)# Concentration
-c_NR_list<-c(26345)
-mu_u_NR <- c(0.00004)          # Means for non-responders (unstimulated)
-mu_u_R  <- c(0.00207)    # Means for responders (unstimulated), let it be the same
-n_runs   <- 3                 # Number of simulation runs
+f_list       <- c(4)           # Inflation factor
+#c_R_list  <- c(400)# Concentration
+#c_NR_list<-c(26345)
+mu_u_NR <- c(6.467642e-05)          # Means for non-responders (unstimulated)
+mu_u_R  <- c(6.467642e-05)    # Means for responders (unstimulated), let it be the same
+n_runs   <- 10               # Number of simulation runs
 c_stim_list       <- c(85000)     # Concentration
 c_unstim_list       <- c(23000)      # Concentration
 ```
@@ -226,14 +226,15 @@ ggsave(filename, plot = plot, width = 24, height = 12, dpi = 300)
 
 ```{r}
 n_samples_list <- c(200)   # Number of participants
-N_list        <- c(10e3)    # Number of cells per sample
+N_list        <- c(50e3)    # Number of cells per sample
 w_list       <- c(0.5)      # Probability of responder
 f_list       <- c(4)         # Inflation factor
 
-mu_u_NR <- c(6.467642e-05) 
-mu_u_R <- c(6.467642e-05)         # Means for responders
+mu_u_NR <- 6.467642e-05 
 
-n_runs   <- 10             # Number of simulation runs
+mu_u_R  <- c(0.00207)           # Means for responders
+
+n_runs   <- 1           # Number of simulation runs
 
 
 n_samples <- n_samples_list[1]
@@ -257,21 +258,26 @@ We then fit MIMOSA using both the EM and MCMC methods, and assess performance us
 
 ```{r}
 #install.packages("cowplot")
-
 set.seed(2025)
 # Parameters
-spike_props <- c(0, 0.05, 0.1, 0.2)   # Proportion of spiked samples
-magnitude_spikes <- c(mu_u_NR, mu_u_NR * 5, mu_u_NR * 5 * 2, mu_u_NR * 5 * 2) 
-N <- 1e4                               # Number of cells
+run_fast <- TRUE
+spike_props <- c(0, 0.05, 0.1, 0.2)  # Proportion of spiked samples
+magnitude_spikes <- c(mu_u_NR, mu_u_NR * 5, mu_u_NR * 5 * 2, mu_u_NR * 5 * 2)
+N <- 2e4                               # Number of cells
 n_samples <- 50                         # Number of samples
 w <- 0.5                                 # weight for responders (example)
 n_runs <- 10
-mtd_vec <- c("EM", "mcmc")[[1]]
+mtd_vec <- c("EM", "mcmc")
 # Storage
 results_auc <- data.frame()
 results_pseudo <- data.frame()
 base_mu_u_NR <- mu_u_NR
 base_mu_u_R  <- mu_u_R
+if (run_fast) {
+  spike_props <- spike_props[[1]]
+  magnitude_spikes <- magnitude_spikes[[1]]
+  mtd_vec <- "EM"
+}
 for (mtd in mtd_vec) {
   print(paste0("Method: ", mtd))
   for (spike in spike_props) {
@@ -283,12 +289,12 @@ for (mtd in mtd_vec) {
         mu_u_NR <- base_mu_u_NR
         mu_u_R  <- base_mu_u_R
         n_spike <- round(n_samples * spike)
-        n_normal <- n_samples - n_spike
         # Normal data 
-        params <- calculate_params(mu_u_NR, mu_u_R, f, c_u, c_s)
-        dat <- simulate_data(n_normal, w, params, N, run)
+        params <- calculate_params(base_mu_u_NR, base_mu_u_NR, f, c_u, c_s)
+        dat <- simulate_data(n_samples, w, params, N, run)
         data_all <- dat$data
         responder_all <- dat$responder_status
+        browser()
         # Spiked data 
         # Spiked data (only if n_spike > 0)
         if (n_spike > 0) {
@@ -332,25 +338,30 @@ for (mtd in mtd_vec) {
           pseudo_ratio_uns <- (alpha_stim + beta_stim - 2) / N
         }
         # browser()
-        # AUC (using true labels: 0=normal, 1=spike) 
-        labels <- c(rep(0, n_normal), rep(1, n_spike))
         # Get posterior probability that each sample is a responder
         prob_mat <- res@z
-        if (length(unique(labels)) > 1 && !em_failure) {
-          prob_scores <- prob_mat[, "z2"]
-          labels <- responder_all
-          roc_obj <- roc(response = factor(labels, levels = c(0,1)),
-                        predictor = prob_scores,
-                        direction = "<")
+        if (length(unique(responder_all)) > 1 && !em_failure) {
+          roc_obj <- roc(
+            response = responder_all,
+            predictor = prob_mat[, "z2"],
+            direction = "<"
+          )
           auc_val <- as.numeric(roc_obj$auc)
+          # get fisher's AUC now, too
+          auc_fisher <- fishers_auc(
+            .data = data_all, status = responder_all,
+            alternative = "less"
+          )
         } else {
           auc_val <- NA
         }
+
         # Save results
         results_auc <- rbind(results_auc, 
                             data.frame(spike_props = spike,
                                         magnitude_spikes = magnitude,
-                                        AUC = auc_val,
+                                        AUC_MIMOSA = auc_val,
+                                        AUC_Fisher = auc_fisher,
                                         method = mtd,
                                         run = run)
         )
@@ -381,10 +392,22 @@ for (mtd in mtd_vec) {
   plot_tbl_auc <- results_auc |>
     dplyr::filter(method == mtd) |>
     dplyr::group_by(spike_props, magnitude_spikes) |>
-    dplyr::summarise(AUC = mean(AUC, na.rm = TRUE), .groups = "drop") |>
+    dplyr::summarise(
+      AUC_MIMOSA = mean(AUC_MIMOSA, na.rm = TRUE),
+      AUC_Fisher = mean(AUC_Fisher, na.rm = TRUE),
+      .groups = "drop"
+      ) |>
     dplyr::ungroup() |>
-    dplyr::filter(!is.nan(AUC)) 
-  plot_auc <- ggplot(plot_tbl_auc, aes(x = spike_props, y = AUC, color = factor(magnitude_spikes))) +
+    tidyr::pivot_longer(
+      cols = c(AUC_MIMOSA, AUC_Fisher),
+      names_to = "AUC_Type",
+      values_to = "AUC"
+    ) |>
+    dplyr::filter(!is.nan(AUC)) |>
+    dplyr::mutate(
+      AUC_Type = gsub("AUC_", "", AUC_Type)
+    )
+  plot_auc <- ggplot(plot_tbl_auc, aes(x = spike_props, y = AUC, color = factor(magnitude_spikes), linetype = AUC_Type)) +
     geom_line(na.rm=TRUE) +
     labs(title = "AUC vs Proportion of Spikes",
         x = "Proportion of Spikes",
@@ -474,6 +497,13 @@ To make this work better, we use more samples (N=100).
 n_samples_active <- 100
 magnitude_spikes_active <- c(mu_u_NR * 5, mu_u_NR * 5 * 2, mu_u_NR * 5 * 5, mu_u_NR * 5 * 10) 
 spike_props_active <- c(0, 0.05, 0.1, 0.2, 0.5)    # Proportion of spiked samples
+results_auc_active <- data.frame()
+results_pseudo_active <- data.frame()
+if (run_fast) {
+  spike_props <- spike_props[[1]]
+  magnitude_spikes <- magnitude_spikes[[1]]
+  mtd_vec <- "EM"
+}
 for (mtd in mtd_vec) {
   print(paste0("Method: ", mtd))
   for (spike in spike_props_active) {
@@ -485,10 +515,9 @@ for (mtd in mtd_vec) {
         mu_u_NR <- base_mu_u_NR
         mu_u_R  <- base_mu_u_R
         n_spike <- round(n_samples_active * spike)
-        n_normal <- n_samples_active - n_spike
         # Normal data 
-        params <- calculate_params(mu_u_NR, mu_u_R, f, c_u, c_s)
-        dat <- simulate_data(n_normal, w, params, N, run)
+        params <- calculate_params(base_mu_u_NR, base_mu_u_NR, f, c_u, c_s)
+        dat <- simulate_data(n_samples, w, params, N, run)
         data_all <- dat$data
         responder_all <- dat$responder_status
         # Spiked data 
@@ -546,6 +575,10 @@ for (mtd in mtd_vec) {
                         predictor = prob_scores,
                         direction = "<")
           auc_val <- as.numeric(roc_obj$auc)
+          # get fisher's AUC now, too
+          auc_fisher <- fishers_auc(
+            .data = data_all, status = responder_all
+          )
         } else {
           auc_val <- NA
         }
@@ -554,6 +587,7 @@ for (mtd in mtd_vec) {
                             data.frame(spike_props = spike,
                                         magnitude_spikes = magnitude,
                                         AUC = auc_val,
+                                        AUC_Fisher = auc_fisher,
                                         method = mtd,
                                         run = run)
         )
@@ -676,6 +710,13 @@ To make this work better, we use more samples (N=100).
 n_samples_resting <- 100
 magnitude_spikes_resting <- mu_u_NR * seq_len(5) 
 spike_props_resting <- c(0, 0.05, 0.1, 0.2, 0.5)    # Proportion of spiked samples
+results_auc_resting <- data.frame()
+results_pseudo_resting <- data.frame()
+if (run_fast) {
+  spike_props <- spike_props[[1]]
+  magnitude_spikes <- magnitude_spikes[[1]]
+  mtd_vec <- "EM"
+}
 for (mtd in mtd_vec) {
   print(paste0("Method: ", mtd))
   for (spike in spike_props_resting) {
@@ -687,10 +728,9 @@ for (mtd in mtd_vec) {
         mu_u_NR <- base_mu_u_NR
         mu_u_R  <- base_mu_u_R
         n_spike <- round(n_samples_resting * spike)
-        n_normal <- n_samples_resting - n_spike
         # Normal data 
-        params <- calculate_params(mu_u_NR, mu_u_R, f, c_u, c_s)
-        dat <- simulate_data(n_normal, w, params, N, run)
+        params <- calculate_params(mu_u_NR, mu_u_NR, f, c_u, c_s)
+        dat <- simulate_data(n_spike, w, params, N, run)
         data_all <- dat$data
         responder_all <- dat$responder_status
         # Spiked data 
@@ -748,6 +788,10 @@ for (mtd in mtd_vec) {
                         predictor = prob_scores,
                         direction = "<")
           auc_val <- as.numeric(roc_obj$auc)
+          # get fisher's AUC now, too
+          auc_fisher <- fishers_auc(
+            .data = data_all, status = responder_all
+          )
         } else {
           auc_val <- NA
         }
@@ -756,6 +800,7 @@ for (mtd in mtd_vec) {
                             data.frame(spike_props = spike,
                                         magnitude_spikes = magnitude,
                                         AUC = auc_val,
+                                        AUC_Fisher = auc_fisher,
                                         method = mtd,
                                         run = run)
         )
