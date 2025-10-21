@@ -249,121 +249,418 @@ print(paste("Parameters: n_samples =", n_samples, ", N =", N,
 
 ```
 
+Here, we simulate results where we spike in noise, which is that for random subset of samples (participant-condition combination), we swop out the proportion of functional cells with a different value (magnitude), which varies from the unstimulated mean to double the stimulated mean.
+
+We vary the proportion of samples spiked from 0% to 20%.
+
+We then fit MIMOSA using both the EM and MCMC methods, and assess performance using the AUC (ability to identify the spiked samples) and the pseudo-trials ratio (measure of strength of prior information learned by MIMOSA about the data).
 
 ```{r}
 #install.packages("cowplot")
 
 set.seed(2025)
 # Parameters
-spike_props <- seq(0, 0.2, by = 0.04)    # Proportion of spiked samples
-magnitude_spikes <- c(0.5, 2, 3)         # Multiplicative magnitudes
-N <- 300                               # Number of cells
-n_samples <- 20                         # Number of samples
+spike_props <- c(0, 0.05, 0.1, 0.2)   # Proportion of spiked samples
+magnitude_spikes <- c(mu_u_NR, mu_u_NR * 5, mu_u_NR * 5 * 2, mu_u_NR * 5 * 2) 
+N <- 1e4                               # Number of cells
+n_samples <- 50                         # Number of samples
 w <- 0.5                                 # weight for responders (example)
-run <- 1
-
+n_runs <- 1
+mtd_vec <- c("EM", "mcmc")[[1]]
 # Storage
 results_auc <- data.frame()
 results_pseudo <- data.frame()
 base_mu_u_NR <- mu_u_NR
 base_mu_u_R  <- mu_u_R
-options(expressions = 500000)  #to solve C stack error
-for (spike in spike_props) {
-  for (magnitude in magnitude_spikes) {
-    browser()
-    mu_u_NR <- base_mu_u_NR
-    mu_u_R  <- base_mu_u_R
-    n_spike <- round(n_samples * spike)
-    n_normal <- n_samples - n_spike
-    # Normal data 
-    params <- calculate_params(mu_u_NR, mu_u_R, f, c_u, c_s)
-    dat <- simulate_data(n_normal, w, params, N, run)
-    # Spiked data 
-    # Spiked data (only if n_spike > 0)
-    if (n_spike > 0) {
-      if (rbinom(1, 1, 0.5) == 1) {
-        mu_u_NR <- mu_u_NR * magnitude 
-      } else {
-        mu_u_R <- mu_u_R * magnitude
-      }
-      rand_params <- calculate_params(mu_u_NR, mu_u_R, f, c_u, c_s)
-      data_all <- rbind(dat$data, rand_dat$data)
-      responder_all <- c(dat$responder_status, rand_dat$responder_status)
-    } else {
-      data_all <- dat$data
-      responder_all <- dat$responder_status
-    }
-    # Fit MIMOSA 
-    E <- prepare_for_mimosa(data_all)
-    fit <- fit_MIMOSA(E)
-    mimosa_obj <- fit$IL2
-    res <- mimosa_obj@result
-    param_values <- res@params
-    alpha_stim <- param_values[2, "alphas.1"]
-    beta_stim  <- param_values[2, "alphas.0"]
-    # Pseudo-trials ratio 
-    pseudo_ratio <- (alpha_stim + beta_stim - 2) / N
-    # AUC (using true labels: 0=normal, 1=spike) 
-    labels <- c(rep(0, n_normal), rep(1, n_spike))
-    # Get posterior probability that each sample is a responder
-    prob_mat <- res@z
-    pheno <- res@phenoData@data
-    df <- bind_cols(pheno, as_tibble(prob_mat)) |>
-          mutate(pid_ind = as.numeric(sub("Subject_", "", SUBJECTID))) |>
-          arrange(pid_ind)
-    
-    resp_df <- tibble(
-      pid_ind = seq_along(responder_all),
-      resp_status = responder_all
-    )
-    
-    df_unique <- df %>%
-  group_by(SUBJECTID) %>%
-  summarize(mimosa_prob = mean(mimosa_prob), .groups = "drop")
-#roc_obj <- pROC::roc(df$resp_status, df$mimosa_prob, quiet = TRUE)
-#auc_value <- as.numeric(pROC::auc(roc_obj))
-prob_scores <- df_unique$mimosa_prob
-labels <- responder_all
-   
-    if (length(unique(labels)) > 1) {
-      roc_obj <- roc(response = factor(labels, levels = c(0,1)),
-                     predictor = prob_scores,
-                     direction = "<")
-      auc_val <- as.numeric(roc_obj$auc)
-    } else {
-      auc_val <- NA
-    }
-    # Save results
-    results_auc <- rbind(results_auc, 
-                         data.frame(spike_props = spike,
-                                    magnitude_spikes = magnitude,
-                                    AUC = auc_val))
-    results_pseudo <- rbind(results_pseudo,
+for (mtd in mtd_vec) {
+  print(paste0("Method: ", mtd))
+  for (spike in spike_props) {
+    print(paste0("spike: ", spike))
+    for (magnitude in magnitude_spikes) {
+      print(paste0("magnitude: ", magnitude))
+      for (run in seq_len(n_runs)) {
+        print(paste0("run: ", run))
+        mu_u_NR <- base_mu_u_NR
+        mu_u_R  <- base_mu_u_R
+        n_spike <- round(n_samples * spike)
+        n_normal <- n_samples - n_spike
+        # Normal data 
+        params <- calculate_params(mu_u_NR, mu_u_R, f, c_u, c_s)
+        dat <- simulate_data(n_normal, w, params, N, run)
+        data_all <- dat$data
+        responder_all <- dat$responder_status
+        # Spiked data 
+        # Spiked data (only if n_spike > 0)
+        if (n_spike > 0) {
+          rep_ind <- sample(seq_len(n_samples), size = n_spike, replace = FALSE)
+          data_all <- dat$data
+          data_all[rep_ind, "CYTNUM"] <- rbinom(n = n_spike, size = N, prob = magnitude)
+          data_all[rep_ind, "NSUB"] <- N - data_all[["CYTNUM"]][rep_ind]
+          responder_all <- dat$responder_status
+        }
+        # Fit MIMOSA 
+        E <- prepare_for_mimosa(data_all)
+        fit <- fit_MIMOSA(E, mtd = mtd)
+        mimosa_obj <- fit$IL2
+        res <- mimosa_obj@result
+        em_failure <- mtd == "EM" && "params" %in% slotNames(res)
+        if (em_failure) {
+          beta_stim <- NA
+          alpha_stim <- NA
+          pseudo_ratio_stim <- NA
+          beta_uns <- NA
+          alpha_uns <- NA
+          pseudo_ratio_uns <- NA
+        } else if (mtd == "mcmc") {
+          param_values <- res@params
+          alpha_stim <- param_values[2, "alphas.1"]
+          beta_stim  <- param_values[2, "alphas.0"]
+          # Pseudo-trials ratio 
+          pseudo_ratio_stim <- (alpha_stim + beta_stim - 2) / N
+          # Pseudo-trials ratio 
+          alpha_uns <- param_values[2, "alphau.1"]
+          beta_uns  <- param_values[2, "alphau.0"]
+          pseudo_ratio_uns <- (alpha_uns + beta_uns - 2) / N
+        } else if (mtd == "EM") {
+          stim_vec_par <- res@par.stim
+          beta_stim <- stim_vec_par[1]
+          alpha_stim <- stim_vec_par[2]
+          pseudo_ratio_stim <- (alpha_stim + beta_stim - 2) / N
+          uns_vec_par <- res@par.unstim
+          beta_stim <- uns_vec_par[1]
+          alpha_stim <- uns_vec_par[2]
+          pseudo_ratio_uns <- (alpha_stim + beta_stim - 2) / N
+        }
+        # browser()
+        # AUC (using true labels: 0=normal, 1=spike) 
+        labels <- c(rep(0, n_normal), rep(1, n_spike))
+        # Get posterior probability that each sample is a responder
+        prob_mat <- res@z
+        if (length(unique(labels)) > 1 && !em_failure) {
+          prob_scores <- prob_mat[, "z2"]
+          labels <- responder_all
+          roc_obj <- roc(response = factor(labels, levels = c(0,1)),
+                        predictor = prob_scores,
+                        direction = "<")
+          auc_val <- as.numeric(roc_obj$auc)
+        } else {
+          auc_val <- NA
+        }
+        # Save results
+        results_auc <- rbind(results_auc, 
                             data.frame(spike_props = spike,
-                                       magnitude_spikes = magnitude,
-                                       PseudoRatio = pseudo_ratio))
-    rm(fit, mimosa_obj, res, E, data_all)
-    gc()
+                                        magnitude_spikes = magnitude,
+                                        AUC = auc_val,
+                                        method = mtd,
+                                        run = run)
+        )
+        results_pseudo <- rbind(results_pseudo,
+                                data.frame(spike_props = spike,
+                                          magnitude_spikes = magnitude,
+                                          PseudoRatioStim = pseudo_ratio_stim,
+                                          PseudoRatioUnstim = pseudo_ratio_uns,
+                                          method = mtd,
+                                          run = run))
+        rm(fit, mimosa_obj, res, E, data_all)
+        gc()
+      }
+      print("------")
+    }
+    print("======")
   }
 }
-# Plot  AUC vs Proportion of Spikes 
-plot_auc <- ggplot(results_auc, aes(x = spike_props, y = AUC, color = factor(magnitude))) +
-  geom_line(na.rm=TRUE) +
-  labs(title = "AUC vs Proportion of Spikes",
-       x = "Proportion of Spikes",
-       y = "AUC",
-       color = "Magnitude") +
-  theme_bw()+cowplot::theme_cowplot()
-# Plot Pseudo-cells ratio vs Proportion of Spikes 
-plot_pseudo <- ggplot(results_pseudo, aes(x = spike_props, y = PseudoRatio, color = factor(magnitude_spikes))) +
-  geom_line(na.rm=TRUE) +
-  labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
-       x = "Proportion of Spikes",
-       y = "Number of Pseudo cells/Real cells",
-       color = "Magnitude") +
-  theme_bw()+cowplot::theme_cowplot()
-# Save
-ggsave("plots/plot_auc.png", plot = plot_auc, width = 6, height = 4, dpi = 300)
-ggsave("plots/plot_pseudo.png", plot = plot_pseudo, width = 6, height = 4, dpi = 300)
+```
 
+Use the EM algorithm plots for the pseudo-trials ratio (as it 
+estimates the parameters directly), and the AUC plots for the MCMC method
+(as there are fewer failed fits).
+
+```{r}
+for (mtd in mtd_vec) {
+  # Plot  AUC vs Proportion of Spikes
+  plot_tbl_auc <- results_auc |>
+    dplyr::filter(method == mtd) |>
+    dplyr::group_by(spike_props, magnitude_spikes) |>
+    dplyr::summarise(AUC = mean(AUC, na.rm = TRUE), .groups = "drop") |>
+    dplyr::ungroup() |>
+    dplyr::filter(!is.nan(AUC)) 
+  plot_auc <- ggplot(plot_tbl_auc, aes(x = spike_props, y = AUC, color = factor(magnitude_spikes))) +
+    geom_line(na.rm=TRUE) +
+    labs(title = "AUC vs Proportion of Spikes",
+        x = "Proportion of Spikes",
+        y = "AUC",
+        color = "Magnitude") + 
+    cowplot::theme_cowplot() +
+    theme(
+      plot.background = element_rect(fill = "white", colour = "white"),
+      panel.background = element_rect(fill = "white", colour = "white")
+    )
+  # Plot Pseudo-cells ratio vs Proportion of Spikes 
+  plot_tbl_pseudo_stim <- results_pseudo |>
+    dplyr::filter(method == mtd) |>
+    dplyr::group_by(spike_props, magnitude_spikes) |>
+    dplyr::summarise(PseudoRatioStim = mean(PseudoRatioStim, na.rm = TRUE), .groups = "drop") |>
+    dplyr::ungroup() |>
+    dplyr::filter(!is.nan(PseudoRatioStim))
+  max_ratio <- plot_tbl_pseudo_stim$PseudoRatioStim |> max(na.rm = TRUE)
+  max_log <- ceiling(log10(max_ratio))
+  min_ratio <- plot_tbl_pseudo_stim$PseudoRatioStim |> min(na.rm = TRUE)
+  min_log <- floor(log10(min_ratio))
+  break_vec <- seq(min_log, max_log, by = 1)
+  plot_pseudo_stim <- ggplot(plot_tbl_pseudo_stim, aes(x = spike_props, y = PseudoRatioStim, color = factor(magnitude_spikes))) +
+    geom_line(na.rm=TRUE) +
+    labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
+        x = "Proportion of Spikes",
+        y = "Number of Pseudo cells/Real cells",
+        color = "Magnitude") +
+    cowplot::theme_cowplot() +
+    theme(
+      plot.background = element_rect(fill = "white", colour = "white"),
+      panel.background = element_rect(fill = "white", colour = "white")
+    ) +
+    scale_y_continuous(
+      trans = "log10",
+      breaks = 10^break_vec,
+      labels = scales::comma(10^break_vec),
+      limits = c(10^break_vec[1], 10^max(break_vec))
+    )
+
+
+  # Plot Pseudo-cells ratio vs Proportion of Spikes
+  plot_tbl_pseudo_uns <- results_pseudo |>
+    dplyr::filter(method == mtd) |>
+    dplyr::group_by(spike_props, magnitude_spikes) |>
+    dplyr::summarise(PseudoRatioUnstim = mean(PseudoRatioUnstim, na.rm = TRUE), .groups = "drop") |>
+    dplyr::ungroup() |>
+    dplyr::filter(!is.nan(PseudoRatioUnstim))
+  max_ratio_uns <- plot_tbl_pseudo_uns$PseudoRatioUnstim |> max(na.rm = TRUE)
+  max_log_uns <- ceiling(log10(max_ratio_uns))
+  min_ratio_uns <- plot_tbl_pseudo_uns$PseudoRatioUnstim |> min(na.rm = TRUE)
+  min_log_uns <- floor(log10(min_ratio_uns))
+  break_vec_uns <- seq(min_log_uns, max_log_uns, by = 1)
+  plot_pseudo_uns <- ggplot(plot_tbl_pseudo_uns, aes(x = spike_props, y = PseudoRatioUnstim, color = factor(magnitude_spikes))) +
+    geom_line(na.rm=TRUE) +
+    labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
+        x = "Proportion of Spikes",
+        y = "Number of Pseudo cells/Real cells",
+        color = "Magnitude") +
+    cowplot::theme_cowplot() +
+    theme(
+      plot.background = element_rect(fill = "white", colour = "white"),
+      panel.background = element_rect(fill = "white", colour = "white")
+    ) +
+    scale_y_continuous(
+      trans = "log10",
+      breaks = 10^break_vec_uns,
+      labels = scales::comma(10^break_vec_uns),
+      limits = c(10^break_vec_uns[1], 10^max(break_vec_uns))
+    )
+  # Save
+  ggsave(paste0("plots/plot_noise_", mtd, "_auc.png"), plot = plot_auc, width = 6, height = 4, dpi = 300)
+  ggsave(paste0("plots/plot_noise_", mtd, "_pseudo_stim_.png"), plot = plot_pseudo_stim, width = 6, height = 4, dpi = 300)
+  ggsave(paste0("plots/plot_noise_", mtd, "_pseudo_uns_.png"), plot = plot_pseudo_uns, width = 6, height = 4, dpi = 300)
+}
+```
+
+Now, we consider spiking in data where some stimulated samples from responders have higher responses than the response.
+We use exactly the same code as before, except that now we only allow the magnitude of the spike to be randomly swopped for stimulated samples.
+We vary the proportion of samples spiked from 0% to 50% (higher range, as now this is not random swopout but targeted to responders only, who
+may in real life has this sort of distribution due to e.g. sex differences) and the magnitude of the spike from the normal
+stimulated mean to 10x the regular stimulated mean.
+
+To make this work better, we use more samples (N=100).
+
+```{r}
+n_samples_active <- 100
+magnitude_spikes_active <- c(mu_u_NR * 5, mu_u_NR * 5 * 2, mu_u_NR * 5 * 5, mu_u_NR * 5 * 10) 
+spike_props_active <- c(0, 0.05, 0.1, 0.2, 0.5)    # Proportion of spiked samples
+for (mtd in mtd_vec) {
+  print(paste0("Method: ", mtd))
+  for (spike in spike_props_active) {
+    print(paste0("spike: ", spike))
+    for (magnitude in magnitude_spikes_active) {
+      print(paste0("magnitude: ", magnitude))
+      for (run in seq_len(n_runs)) {
+        print(paste0("run: ", run))
+        mu_u_NR <- base_mu_u_NR
+        mu_u_R  <- base_mu_u_R
+        n_spike <- round(n_samples_active * spike)
+        n_normal <- n_samples_active - n_spike
+        # Normal data 
+        params <- calculate_params(mu_u_NR, mu_u_R, f, c_u, c_s)
+        dat <- simulate_data(n_normal, w, params, N, run)
+        data_all <- dat$data
+        responder_all <- dat$responder_status
+        # Spiked data 
+        # Spiked data (only if n_spike > 0)
+        if (n_spike > 0) {
+          # only select stimulated indices, from responders
+          rep_ind <- sample(seq(n_samples_active + 1, n_samples_active * 2), size = n_spike, replace = FALSE)
+          data_all <- dat$data
+          data_all[rep_ind, "CYTNUM"] <- rbinom(n = n_spike, size = N, prob = magnitude)
+          data_all[rep_ind, "NSUB"] <- N - data_all[["CYTNUM"]][rep_ind]
+          responder_all <- dat$responder_status
+        }
+        # Fit MIMOSA 
+        E <- prepare_for_mimosa(data_all)
+        fit <- fit_MIMOSA(E, mtd = mtd)
+        mimosa_obj <- fit$IL2
+        res <- mimosa_obj@result
+        em_failure <- mtd == "EM" && "params" %in% slotNames(res)
+        if (em_failure) {
+          beta_stim <- NA
+          alpha_stim <- NA
+          pseudo_ratio_stim <- NA
+          beta_uns <- NA
+          alpha_uns <- NA
+          pseudo_ratio_uns <- NA
+        } else if (mtd == "mcmc") {
+          param_values <- res@params
+          alpha_stim <- param_values[2, "alphas.1"]
+          beta_stim  <- param_values[2, "alphas.0"]
+          # Pseudo-trials ratio 
+          pseudo_ratio_stim <- (alpha_stim + beta_stim - 2) / N
+          # Pseudo-trials ratio 
+          alpha_uns <- param_values[2, "alphau.1"]
+          beta_uns  <- param_values[2, "alphau.0"]
+          pseudo_ratio_uns <- (alpha_uns + beta_uns - 2) / N
+        } else if (mtd == "EM") {
+          stim_vec_par <- res@par.stim
+          beta_stim <- stim_vec_par[1]
+          alpha_stim <- stim_vec_par[2]
+          pseudo_ratio_stim <- (alpha_stim + beta_stim - 2) / N
+          uns_vec_par <- res@par.unstim
+          beta_stim <- uns_vec_par[1]
+          alpha_stim <- uns_vec_par[2]
+          pseudo_ratio_uns <- (alpha_stim + beta_stim - 2) / N
+        }
+        # browser()
+        # AUC (using true labels: 0=normal, 1=spike) 
+        labels <- c(rep(0, n_normal), rep(1, n_spike))
+        # Get posterior probability that each sample is a responder
+        prob_mat <- res@z
+        if (length(unique(labels)) > 1 && !em_failure) {
+          prob_scores <- prob_mat[, "z2"]
+          labels <- responder_all
+          roc_obj <- roc(response = factor(labels, levels = c(0,1)),
+                        predictor = prob_scores,
+                        direction = "<")
+          auc_val <- as.numeric(roc_obj$auc)
+        } else {
+          auc_val <- NA
+        }
+        # Save results
+        results_auc_active <- rbind(results_auc_active, 
+                            data.frame(spike_props = spike,
+                                        magnitude_spikes = magnitude,
+                                        AUC = auc_val,
+                                        method = mtd,
+                                        run = run)
+        )
+        results_pseudo_active <- rbind(results_pseudo_active,
+                                data.frame(spike_props = spike,
+                                          magnitude_spikes = magnitude,
+                                          PseudoRatioStim = pseudo_ratio_stim,
+                                          PseudoRatioUnstim = pseudo_ratio_uns,
+                                          method = mtd,
+                                          run = run))
+        rm(fit, mimosa_obj, res, E, data_all)
+        gc()
+      }
+      print("------")
+    }
+    print("======")
+  }
+}
+```
+
+Use the EM algorithm plots for the pseudo-trials ratio (as it 
+estimates the parameters directly), and the AUC plots for the MCMC method
+(as there are fewer failed fits).
+
+```{r}
+for (mtd in mtd_vec) {
+  # Plot  AUC vs Proportion of Spikes
+  plot_tbl_auc <- results_auc_active |>
+    dplyr::filter(method == mtd) |>
+    dplyr::group_by(spike_props, magnitude_spikes) |>
+    dplyr::summarise(AUC = mean(AUC, na.rm = TRUE), .groups = "drop") |>
+    dplyr::ungroup() |>
+    dplyr::filter(!is.nan(AUC)) 
+  plot_auc <- ggplot(plot_tbl_auc, aes(x = spike_props, y = AUC, color = factor(magnitude_spikes))) +
+    geom_line(na.rm=TRUE) +
+    labs(title = "AUC vs Proportion of Spikes",
+        x = "Proportion of Spikes",
+        y = "AUC",
+        color = "Magnitude") + 
+    cowplot::theme_cowplot() +
+    theme(
+      plot.background = element_rect(fill = "white", colour = "white"),
+      panel.background = element_rect(fill = "white", colour = "white")
+    )
+  # Plot Pseudo-cells ratio vs Proportion of Spikes 
+  plot_tbl_pseudo_stim <- results_pseudo_active |>
+    dplyr::filter(method == mtd) |>
+    dplyr::group_by(spike_props, magnitude_spikes) |>
+    dplyr::summarise(PseudoRatioStim = mean(PseudoRatioStim, na.rm = TRUE), .groups = "drop") |>
+    dplyr::ungroup() |>
+    dplyr::filter(!is.nan(PseudoRatioStim))
+  max_ratio <- plot_tbl_pseudo_stim$PseudoRatioStim |> max(na.rm = TRUE)
+  max_log <- ceiling(log10(max_ratio))
+  min_ratio <- plot_tbl_pseudo_stim$PseudoRatioStim |> min(na.rm = TRUE)
+  min_log <- floor(log10(min_ratio))
+  break_vec <- seq(min_log, max_log, by = 1)
+  plot_pseudo_stim <- ggplot(plot_tbl_pseudo_stim, aes(x = spike_props, y = PseudoRatioStim, color = factor(magnitude_spikes))) +
+    geom_line(na.rm=TRUE) +
+    labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
+        x = "Proportion of Spikes",
+        y = "Number of Pseudo cells/Real cells",
+        color = "Magnitude") +
+    cowplot::theme_cowplot() +
+    theme(
+      plot.background = element_rect(fill = "white", colour = "white"),
+      panel.background = element_rect(fill = "white", colour = "white")
+    ) +
+    scale_y_continuous(
+      trans = "log10",
+      breaks = 10^break_vec,
+      labels = scales::comma(10^break_vec),
+      limits = c(10^break_vec[1], 10^max(break_vec))
+    )
+
+
+  # Plot Pseudo-cells ratio vs Proportion of Spikes
+  plot_tbl_pseudo_uns <- results_pseudo_actve |>
+    dplyr::filter(method == mtd) |>
+    dplyr::group_by(spike_props, magnitude_spikes) |>
+    dplyr::summarise(PseudoRatioUnstim = mean(PseudoRatioUnstim, na.rm = TRUE), .groups = "drop") |>
+    dplyr::ungroup() |>
+    dplyr::filter(!is.nan(PseudoRatioUnstim))
+  max_ratio_uns <- plot_tbl_pseudo_uns$PseudoRatioUnstim |> max(na.rm = TRUE)
+  max_log_uns <- ceiling(log10(max_ratio_uns))
+  min_ratio_uns <- plot_tbl_pseudo_uns$PseudoRatioUnstim |> min(na.rm = TRUE)
+  min_log_uns <- floor(log10(min_ratio_uns))
+  break_vec_uns <- seq(min_log_uns, max_log_uns, by = 1)
+  plot_pseudo_uns <- ggplot(plot_tbl_pseudo_uns, aes(x = spike_props, y = PseudoRatioUnstim, color = factor(magnitude_spikes))) +
+    geom_line(na.rm=TRUE) +
+    labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
+        x = "Proportion of Spikes",
+        y = "Number of Pseudo cells/Real cells",
+        color = "Magnitude") +
+    cowplot::theme_cowplot() +
+    theme(
+      plot.background = element_rect(fill = "white", colour = "white"),
+      panel.background = element_rect(fill = "white", colour = "white")
+    ) +
+    scale_y_continuous(
+      trans = "log10",
+      breaks = 10^break_vec_uns,
+      labels = scales::comma(10^break_vec_uns),
+      limits = c(10^break_vec_uns[1], 10^max(break_vec_uns))
+    )
+  # Save
+  ggsave(paste0("plots/plot_active_", mtd, "_auc.png"), plot = plot_auc, width = 6, height = 4, dpi = 300)
+  ggsave(paste0("plots/plot_active_", mtd, "_pseudo_stim_.png"), plot = plot_pseudo_stim, width = 6, height = 4, dpi = 300)
+  ggsave(paste0("plots/plot_active_", mtd, "_pseudo_uns_.png"), plot = plot_pseudo_uns, width = 6, height = 4, dpi = 300)
+}
 ```
