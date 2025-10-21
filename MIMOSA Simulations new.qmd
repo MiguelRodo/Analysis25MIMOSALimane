@@ -294,7 +294,6 @@ for (mtd in mtd_vec) {
         dat <- simulate_data(n_samples, w, params, N, run)
         data_all <- dat$data
         responder_all <- dat$responder_status
-        browser()
         # Spiked data 
         # Spiked data (only if n_spike > 0)
         if (n_spike > 0) {
