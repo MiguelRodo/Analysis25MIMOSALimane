@@ -260,7 +260,8 @@ We then fit MIMOSA using both the EM and MCMC methods, and assess performance us
 #install.packages("cowplot")
 set.seed(2025)
 # Parameters
-run_fast <- TRUE
+# whether to only run restricted parameter settings for testing
+run_fast <- FALSE
 spike_props <- c(0, 0.05, 0.1, 0.2)  # Proportion of spiked samples
 magnitude_spikes <- c(mu_u_NR, mu_u_NR * 5, mu_u_NR * 5 * 2, mu_u_NR * 5 * 2)
 N <- 2e4                               # Number of cells
@@ -340,8 +341,12 @@ for (mtd in mtd_vec) {
         # Get posterior probability that each sample is a responder
         prob_mat <- res@z
         if (length(unique(responder_all)) > 1 && !em_failure) {
+          rn_vec <- rownames(prob_mat)
+          rn_vec <- gsub("Treatment_Subject_", "", rn_vec)
+          rn_vec <- gsub("_IL2.*", "", rn_vec)
+          rn_vec <- as.numeric(rn_vec)
           roc_obj <- roc(
-            response = responder_all,
+            response = responder_all[rn_vec],
             predictor = prob_mat[, "z2"],
             direction = "<"
           )
@@ -568,11 +573,15 @@ for (mtd in mtd_vec) {
         # Get posterior probability that each sample is a responder
         prob_mat <- res@z
         if (length(unique(labels)) > 1 && !em_failure) {
-          prob_scores <- prob_mat[, "z2"]
-          labels <- responder_all
-          roc_obj <- roc(response = factor(labels, levels = c(0,1)),
-                        predictor = prob_scores,
-                        direction = "<")
+          rn_vec <- rownames(prob_mat)
+          rn_vec <- gsub("Treatment_Subject_", "", rn_vec)
+          rn_vec <- gsub("_IL2.*", "", rn_vec)
+          rn_vec <- as.numeric(rn_vec)
+          roc_obj <- roc(
+            response = responder_all[rn_vec],
+            predictor = prob_mat[, "z2"],
+            direction = "<"
+          )
           auc_val <- as.numeric(roc_obj$auc)
           # get fisher's AUC now, too
           auc_fisher <- fishers_auc(
@@ -781,11 +790,15 @@ for (mtd in mtd_vec) {
         # Get posterior probability that each sample is a responder
         prob_mat <- res@z
         if (length(unique(labels)) > 1 && !em_failure) {
-          prob_scores <- prob_mat[, "z2"]
-          labels <- responder_all
-          roc_obj <- roc(response = factor(labels, levels = c(0,1)),
-                        predictor = prob_scores,
-                        direction = "<")
+          rn_vec <- rownames(prob_mat)
+          rn_vec <- gsub("Treatment_Subject_", "", rn_vec)
+          rn_vec <- gsub("_IL2.*", "", rn_vec)
+          rn_vec <- as.numeric(rn_vec)
+          roc_obj <- roc(
+            response = responder_all[rn_vec],
+            predictor = prob_mat[, "z2"],
+            direction = "<"
+          )
           auc_val <- as.numeric(roc_obj$auc)
           # get fisher's AUC now, too
           auc_fisher <- fishers_auc(
