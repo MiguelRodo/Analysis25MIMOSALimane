@@ -60,7 +60,7 @@ fishers_auc <- function(.data, status, alternative = "less") {
         stim_cyt,   stim_nsub),
       nrow = 2, byrow = TRUE
     )
-    ft <- stats::fisher.test(cont_table, alternative = "less")
+    ft <- stats::fisher.test(cont_table, alternative = alternative)
     ft$p.value
   })
   roc_obj <- pROC::roc(
