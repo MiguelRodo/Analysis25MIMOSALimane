@@ -256,29 +256,32 @@ We vary the proportion of samples spiked from 0% to 20%.
 
 We then fit MIMOSA using both the EM and MCMC methods, and assess performance using the AUC (ability to identify the responders) and the pseudo-trials ratio (measure of strength of prior information learned by MIMOSA about the data).
 
+
+
+
 ```{r}
-#install.packages("cowplot")
 set.seed(2025)
 # Parameters
-# whether to only run restricted parameter settings for testing
 run_fast <- FALSE
-spike_props <- c(0, 0.05, 0.1, 0.2)  # Proportion of spiked samples
-magnitude_spikes <- c(mu_u_NR, mu_u_NR * 5, mu_u_NR * 5 * 2, mu_u_NR * 5 * 4)
-N <- 2e4                               # Number of cells
-n_samples <- 50                         # Number of samples
-w <- 0.5                                 # weight for responders (example)
-n_runs <- 10
-mtd_vec <- c("EM", "mcmc")
+spike_props <- c(0, 0.05, 0.1, 0.2) 
+magnitude_spikes <- c(mu_u_NR, mu_u_NR * 5, mu_u_NR * 10, mu_u_NR * 20)
+N <- 1e4 #em is heavy , originally is 1e4 or 2e4                              
+n_samples <- 50                        
+w <- 0.5                                
+n_runs <- 1
+mtd_vec <- "EM"  # EM only
+
 # Storage
 results_auc <- data.frame()
 results_pseudo <- data.frame()
 base_mu_u_NR <- mu_u_NR
 base_mu_u_R  <- mu_u_R
+
 if (run_fast) {
   spike_props <- spike_props[[1]]
   magnitude_spikes <- magnitude_spikes[[1]]
-  mtd_vec <- "EM"
 }
+
 for (mtd in mtd_vec) {
   print(paste0("Method: ", mtd))
   for (spike in spike_props) {
@@ -290,93 +293,76 @@ for (mtd in mtd_vec) {
         mu_u_NR <- base_mu_u_NR
         mu_u_R  <- base_mu_u_R
         n_spike <- round(n_samples * spike)
-        # Normal data 
+        
+        # Simulate data
         params <- calculate_params(base_mu_u_NR, base_mu_u_NR, f, c_u, c_s)
         dat <- simulate_data(n_samples, w, params, N, run)
         data_all <- dat$data
         responder_all <- dat$responder_status
-        # Spiked data 
-        # Spiked data (only if n_spike > 0)
+        
         if (n_spike > 0) {
           rep_ind <- sample(nrow(data_all), size = n_spike, replace = FALSE)
-          data_all <- dat$data
           data_all[rep_ind, "CYTNUM"] <- rbinom(n = n_spike, size = N, prob = magnitude)
           data_all[rep_ind, "NSUB"] <- N - data_all[["CYTNUM"]][rep_ind]
-          responder_all <- dat$responder_status
         }
-        # Fit MIMOSA 
+        
+        # Fit MIMOSA
         E <- prepare_for_mimosa(data_all)
-        fit <- fit_MIMOSA(E, mtd = mtd)
+        cat("Prepared for MIMOSA, first few rows:\n")
+        print(table(E@phenoData$responder_status))
+
+        fit <- tryCatch(
+        fit_MIMOSA(E, mtd = "EM"),
+        error = function(e) NULL,
+        warning = function(w) NULL
+      )
+      
+        
         mimosa_obj <- fit$IL2
         res <- mimosa_obj@result
-        em_failure <- mtd == "EM" && "params" %in% slotNames(res)
-        if (em_failure) {
-          beta_stim <- NA
-          alpha_stim <- NA
-          pseudo_ratio_stim <- NA
-          beta_uns <- NA
-          alpha_uns <- NA
-          pseudo_ratio_uns <- NA
-        } else if (mtd == "mcmc") {
-          param_values <- res@params
-          alpha_stim <- param_values[2, "alphas.1"]
-          beta_stim  <- param_values[2, "alphas.0"]
-          # Pseudo-trials ratio 
-          pseudo_ratio_stim <- (alpha_stim + beta_stim - 2) / N
-          # Pseudo-trials ratio 
-          alpha_uns <- param_values[2, "alphau.1"]
-          beta_uns  <- param_values[2, "alphau.0"]
-          pseudo_ratio_uns <- (alpha_uns + beta_uns - 2) / N
-        } else if (mtd == "EM") {
-          stim_vec_par <- res@par.stim
-          beta_stim <- stim_vec_par[1]
-          alpha_stim <- stim_vec_par[2]
-          pseudo_ratio_stim <- (alpha_stim + beta_stim - 2) / N
-          uns_vec_par <- res@par.unstim
-          beta_uns <- uns_vec_par[1]
-          alpha_uns <- uns_vec_par[2]
-          pseudo_ratio_uns <- (alpha_uns + beta_uns - 2) / N
-        }
-        # browser()
-        # Get posterior probability that each sample is a responder
+        
+        # Extract parameters
+        stim_vec_par <- res@par.stim
+        uns_vec_par  <- res@par.unstim
+        beta_stim <- stim_vec_par[1]
+        alpha_stim <- stim_vec_par[2]
+        pseudo_ratio_stim <- (alpha_stim + beta_stim - 2) / N
+        beta_uns <- uns_vec_par[1]
+        alpha_uns <- uns_vec_par[2]
+        pseudo_ratio_uns <- (alpha_uns + beta_uns - 2) / N
+        
+        # Posterior probability matrix
         prob_mat <- res@z
-        if (!em_failure) {
-          rn_vec <- rownames(prob_mat)
-          rn_vec <- gsub("Treatment_Subject_", "", rn_vec)
-          rn_vec <- gsub("_IL2.*", "", rn_vec)
-          rn_vec <- as.numeric(rn_vec)
-          roc_obj <- roc(
-            response = responder_all[rn_vec],
-            predictor = prob_mat[, "z2"],
-            direction = "<"
-          )
-          auc_val <- as.numeric(roc_obj$auc)
-          # get fisher's AUC now, too
-          auc_fisher <- fishers_auc(
-            .data = data_all, status = responder_all,
-            alternative = "less"
-          )
-        } else {
-          auc_val <- NA
-          auc_fisher <- NA
-        }
-
+        rn_vec <- rownames(prob_mat)
+        rn_vec <- gsub("Treatment_Subject_", "", rn_vec)
+        rn_vec <- gsub("_IL2.*", "", rn_vec)
+        rn_vec <- as.numeric(rn_vec)
+        
+        # Compute ROC and Fisher AUC
+        roc_obj <- roc(
+          response = responder_all[rn_vec],
+          predictor = prob_mat[, 2],
+          direction = "<"
+        )
+        auc_val <- as.numeric(roc_obj$auc)
+        auc_fisher <- fishers_auc(.data = data_all, status = responder_all, alternative = "less")
+        
         # Save results
         results_auc <- rbind(results_auc, 
-                            data.frame(spike_props = spike,
+                             data.frame(spike_props = spike,
                                         magnitude_spikes = magnitude,
                                         AUC_MIMOSA = auc_val,
                                         AUC_Fisher = auc_fisher,
                                         method = mtd,
-                                        run = run)
-        )
+                                        run = run))
         results_pseudo <- rbind(results_pseudo,
-                                data.frame(spike_props = spike,
-                                          magnitude_spikes = magnitude,
-                                          PseudoRatioStim = pseudo_ratio_stim,
-                                          PseudoRatioUnstim = pseudo_ratio_uns,
-                                          method = mtd,
-                                          run = run))
+                                 data.frame(spike_props = spike,
+                                            magnitude_spikes = magnitude,
+                                            PseudoRatioStim = pseudo_ratio_stim,
+                                            PseudoRatioUnstim = pseudo_ratio_uns,
+                                            method = mtd,
+                                            run = run))
+        
         rm(fit, mimosa_obj, res, E, data_all)
         gc()
       }
@@ -385,6 +371,7 @@ for (mtd in mtd_vec) {
     print("======")
   }
 }
+
 ```
 
 Use the EM algorithm plots for the pseudo-trials ratio (as it 
@@ -499,6 +486,28 @@ stimulated mean to 10x the regular stimulated mean.
 To make this work better, we use more samples (N=100).
 
 ```{r}
+# Parameters
+run_fast <- FALSE
+spike_props <- c(0, 0.05, 0.1, 0.2) 
+magnitude_spikes <- c(mu_u_NR, mu_u_NR * 5, mu_u_NR * 10, mu_u_NR * 20)
+N <- 2e4 #em is heavy , originally is 1e4 or 2e4                              
+n_samples <- 50                        
+w <- 0.5                                
+n_runs <- 10
+mtd_vec <- "EM"  # EM only
+
+# Storage
+results_auc <- data.frame()
+results_pseudo <- data.frame()
+base_mu_u_NR <- mu_u_NR
+base_mu_u_R  <- mu_u_R
+
+if (run_fast) {
+  spike_props <- spike_props[[1]]
+  magnitude_spikes <- magnitude_spikes[[1]]
+}
+
+
 n_samples_active <- 100
 magnitude_spikes_active <- c(mu_u_NR * 5, mu_u_NR * 5 * 2, mu_u_NR * 5 * 5, mu_u_NR * 5 * 10) 
 spike_props_active <- c(0, 0.05, 0.1, 0.2, 0.5)    # Proportion of spiked samples
@@ -528,17 +537,22 @@ for (mtd in mtd_vec) {
         # Spiked data 
         # Spiked data (only if n_spike > 0)
         if (n_spike > 0) {
-          # only select stimulated indices, from responders
-          rep_ind <- sample(
-            seq(n_samples_active + 1, n_samples_active * 2)[
-              responder_all == 1L
-            ],
-            size = n_spike, replace = FALSE)
-          data_all <- dat$data
-          data_all[rep_ind, "CYTNUM"] <- rbinom(n = n_spike, size = N, prob = magnitude)
-          data_all[rep_ind, "NSUB"] <- N - data_all[["CYTNUM"]][rep_ind]
-          responder_all <- dat$responder_status
-        }
+  # Identify stimulated indices among responders
+  responder_indices <- seq(n_samples_active + 1, n_samples_active * 2)[responder_all == 1L]
+  
+  # Ensure we don't try to sample more responders than available
+  n_spike <- min(round(n_samples_active * spike), length(responder_indices))
+  
+  if (n_spike > 0) {
+    rep_ind <- sample(responder_indices, size = n_spike, replace = FALSE)
+    
+    data_all <- dat$data
+    data_all[rep_ind, "CYTNUM"] <- rbinom(n = n_spike, size = N, prob = magnitude)
+    data_all[rep_ind, "NSUB"] <- N - data_all[["CYTNUM"]][rep_ind]
+    responder_all <- dat$responder_status
+  }
+}
+
         # Fit MIMOSA 
         E <- prepare_for_mimosa(data_all)
         fit <- fit_MIMOSA(E, mtd = mtd)
@@ -718,6 +732,29 @@ activated mean.
 To make this work better, we use more samples (N=100).
 
 ```{r}
+# Parameters
+run_fast <- FALSE
+spike_props <- c(0, 0.05, 0.1, 0.2) 
+magnitude_spikes <- c(mu_u_NR, mu_u_NR * 5, mu_u_NR * 10, mu_u_NR * 20)
+N <- 2e4 #em is heavy , originally is 1e4 or 2e4                              
+n_samples <- 50                        
+w <- 0.5                                
+n_runs <- 10
+mtd_vec <- "EM"  # EM only
+
+# Storage
+results_auc <- data.frame()
+results_pseudo <- data.frame()
+base_mu_u_NR <- mu_u_NR
+base_mu_u_R  <- mu_u_R
+
+if (run_fast) {
+  spike_props <- spike_props[[1]]
+  magnitude_spikes <- magnitude_spikes[[1]]
+}
+
+
+
 n_samples_resting <- 100
 magnitude_spikes_resting <- mu_u_NR * seq_len(5) 
 spike_props_resting <- c(0, 0.05, 0.1, 0.2, 0.5)    # Proportion of spiked samples

@@ -1,4 +1,4 @@
-fit_MIMOSA <- function(data, mtd = "mcmc") {
+fit_MIMOSA <- function(data, mtd = "em") {
   sink("output.txt", append = TRUE)
   fit <- MIMOSA(
     NSUB + CYTNUM ~ SUBJECTID | CYTOKINE,
