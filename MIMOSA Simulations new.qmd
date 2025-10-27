@@ -689,88 +689,75 @@ estimates the parameters directly), and the AUC plots for the MCMC method
 
 ```{r}
 library(patchwork)
+library(dplyr)
+library(ggplot2)
+library(cowplot)
+library(scales)
 
 for (mtd in mtd_vec) {
 
-  # ----- AUC plot -----
+  # ----- Prepare tables and round magnitudes -----
   plot_tbl_auc_active <- results_auc_active |>
     dplyr::filter(method == mtd) |>
     dplyr::group_by(spike_props, magnitude_spikes) |>
     dplyr::summarise(AUC = mean(AUC, na.rm = TRUE), .groups = "drop") |>
     dplyr::ungroup() |>
-    dplyr::filter(!is.nan(AUC)) 
+    dplyr::filter(!is.nan(AUC)) |>
+    dplyr::mutate(magnitude_spikes = round(magnitude_spikes, 7))
 
-  plot_auc_active <- ggplot(plot_tbl_auc_active, aes(x = spike_props, y = AUC, color = factor(magnitude_spikes))) +
-    geom_line(na.rm=TRUE) +
-    labs(x = "Proportion of Spikes", y = "AUC", color = "Magnitude") + 
-    cowplot::theme_cowplot() +
-    theme(plot.background = element_rect(fill = "white", colour = "white"),
-          panel.background = element_rect(fill = "white", colour = "white"))
-
-  # ----- Pseudo-stim plot -----
   plot_tbl_pseudo_stim_active <- results_pseudo_active |>
     dplyr::filter(method == mtd) |>
     dplyr::group_by(spike_props, magnitude_spikes) |>
     dplyr::summarise(PseudoRatioStim = mean(PseudoRatioStim, na.rm = TRUE), .groups = "drop") |>
     dplyr::ungroup() |>
-    dplyr::filter(!is.nan(PseudoRatioStim))
+    dplyr::filter(!is.nan(PseudoRatioStim)) |>
+    dplyr::mutate(magnitude_spikes = round(magnitude_spikes, 7))
 
-  max_ratio <- max(plot_tbl_pseudo_stim_active$PseudoRatioStim, na.rm = TRUE)
-  min_ratio <- min(plot_tbl_pseudo_stim_active$PseudoRatioStim, na.rm = TRUE)
-  break_vec <- seq(floor(log10(min_ratio)), ceiling(log10(max_ratio)), by = 1)
-
-  plot_pseudo_stim_active <- ggplot(plot_tbl_pseudo_stim_active, aes(x = spike_props, y = PseudoRatioStim, color = factor(magnitude_spikes))) +
-    geom_line(na.rm=TRUE) +
-    labs(x = "Proportion of Spikes", y = "Number of Pseudo cells/Real cells", color = "Magnitude") +
-    cowplot::theme_cowplot() +
-    scale_y_continuous(trans = "log10",
-                       breaks = 10^break_vec,
-                       labels = scales::comma(10^break_vec),
-                       limits = c(10^break_vec[1], 10^max(break_vec))) +
-    theme(plot.background = element_rect(fill = "white", colour = "white"),
-          panel.background = element_rect(fill = "white", colour = "white"))
-
-  # ----- Pseudo-unstim plot -----
   plot_tbl_pseudo_uns_active <- results_pseudo_active |>
     dplyr::filter(method == mtd) |>
     dplyr::group_by(spike_props, magnitude_spikes) |>
     dplyr::summarise(PseudoRatioUnstim = mean(PseudoRatioUnstim, na.rm = TRUE), .groups = "drop") |>
     dplyr::ungroup() |>
-    dplyr::filter(!is.nan(PseudoRatioUnstim))
+    dplyr::filter(!is.nan(PseudoRatioUnstim)) |>
+    dplyr::mutate(magnitude_spikes = round(magnitude_spikes, 7))
 
-  max_ratio_uns <- max(plot_tbl_pseudo_uns_active$PseudoRatioUnstim, na.rm = TRUE)
-  min_ratio_uns <- min(plot_tbl_pseudo_uns_active$PseudoRatioUnstim, na.rm = TRUE)
-  break_vec_uns <- seq(floor(log10(min_ratio_uns)), ceiling(log10(max_ratio_uns)), by = 1)
-
-  plot_pseudo_uns_active <- ggplot(plot_tbl_pseudo_uns_active, aes(x = spike_props, y = PseudoRatioUnstim, color = factor(magnitude_spikes))) +
-    geom_line(na.rm=TRUE) +
-    labs(x = "Proportion of Spikes", y = "Number of Pseudo cells/Real cells", color = "Magnitude") +
+  # ----- Create individual plots (no separate scales) -----
+  p1 <- ggplot(plot_tbl_auc_active, aes(x = spike_props, y = AUC, color = factor(magnitude_spikes))) +
+    geom_line(na.rm = TRUE) +
+    labs(x = "Proportion of Spikes", y = "AUC", color = "Magnitude") +
     cowplot::theme_cowplot() +
-    scale_y_continuous(trans = "log10",
-                       breaks = 10^break_vec_uns,
-                       labels = scales::comma(10^break_vec_uns),
-                       limits = c(10^break_vec_uns[1], 10^max(break_vec_uns))) +
-    theme(plot.background = element_rect(fill = "white", colour = "white"),
-          panel.background = element_rect(fill = "white", colour = "white"))
+    theme(plot.title = element_blank())
 
-  # ----- Round legend labels -----
-  plot_auc_active <- plot_auc_active + scale_color_discrete(labels = function(x) round(as.numeric(x), 7))
-  plot_pseudo_stim_active <- plot_pseudo_stim_active + scale_color_discrete(labels = function(x) round(as.numeric(x), 7))
-  plot_pseudo_uns_active <- plot_pseudo_uns_active + scale_color_discrete(labels = function(x) round(as.numeric(x), 7))
+  p2 <- ggplot(plot_tbl_pseudo_stim_active, aes(x = spike_props, y = PseudoRatioStim, color = factor(magnitude_spikes))) +
+    geom_line(na.rm = TRUE) +
+    labs(x = "Proportion of Spikes", y = "Pseudo / Real Cells", color = "Magnitude") +
+    cowplot::theme_cowplot() +
+    theme(plot.title = element_blank()) +
+    scale_y_continuous(trans = "log10", labels = scales::comma)
 
-  # ----- Combine all three plots vertically with shared legend -----
-  combined_active <- plot_auc_active / plot_pseudo_stim_active / plot_pseudo_uns_active +
-    plot_layout(guides = "collect") &
-    theme(legend.position = "bottom",
-          legend.title = element_text(size = 8),
-          legend.text  = element_text(size = 7))
+  p3 <- ggplot(plot_tbl_pseudo_uns_active, aes(x = spike_props, y = PseudoRatioUnstim, color = factor(magnitude_spikes))) +
+    geom_line(na.rm = TRUE) +
+    labs(x = "Proportion of Spikes", y = "Pseudo / Real Cells", color = "Magnitude") +
+    cowplot::theme_cowplot() +
+    theme(plot.title = element_blank()) +
+    scale_y_continuous(trans = "log10", labels = scales::comma)
 
+  # ----- Combine plots in 1 row with a single shared legend -----
+  combined_active <- patchwork::wrap_plots(p1, p2, p3, nrow = 1, guides = "collect") &
+    theme(
+      legend.position = "bottom",
+      legend.title = element_text(size = 9),
+      legend.text  = element_text(size = 8)
+    )
 
-
-  # Save combined figure
-  ggsave(paste0("plots/plot_active_combined_", mtd, ".png"),
-         plot = combined_active, width = 18, height = 6, dpi = 300)
+  # ----- Save figure -----
+  ggsave(
+    filename = paste0("plots/plot_active_combined_", mtd, ".png"),
+    plot = combined_active,
+    width = 18, height = 6, dpi = 300
+  )
 }
+
 ```
 
 Now, we consider spiking in data where some resting samples have higher responses than others, perhaps due to pre-existing responses..
