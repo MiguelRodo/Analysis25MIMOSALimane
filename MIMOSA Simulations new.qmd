@@ -268,7 +268,7 @@ magnitude_spikes <- c(mu_u_NR, mu_u_NR * 5, mu_u_NR * 10, mu_u_NR * 20)
 N <- 1e4 #em is heavy , originally is 1e4 or 2e4                              
 n_samples <- 50                        
 w <- 0.5                                
-n_runs <- 1
+n_runs <- 10
 mtd_vec <- "EM"  # EM only
 
 # Storage
@@ -381,7 +381,7 @@ for (mtd in mtd_vec) {
           auc_fisher <- NA
         }
         # Save results
-        results_aucve <- rbind(results_auc, 
+        results_auc <- rbind(results_auc, 
                             data.frame(spike_props = spike,
                                         magnitude_spikes = magnitude,
                                         AUC = auc_val,
@@ -412,55 +412,65 @@ estimates the parameters directly), and the AUC plots for the MCMC method
 (as there are fewer failed fits).
 
 ```{r}
+library(patchwork)
+
 for (mtd in mtd_vec) {
-  # Plot  AUC vs Proportion of Spikes
+
+  # --- Plot AUC vs Proportion of Spikes ---
   plot_tbl_auc <- results_auc |>
     dplyr::filter(method == mtd) |>
+     dplyr::mutate(magnitude_spikes = round(magnitude_spikes, 7)) |>
     dplyr::group_by(spike_props, magnitude_spikes) |>
     dplyr::summarise(
-      AUC_MIMOSA = mean(AUC_MIMOSA, na.rm = TRUE),
+      AUC_MIMOSA = mean(AUC, na.rm = TRUE),
       AUC_Fisher = mean(AUC_Fisher, na.rm = TRUE),
       .groups = "drop"
-      ) |>
-    dplyr::ungroup() |>
+    ) |>
     tidyr::pivot_longer(
       cols = c(AUC_MIMOSA, AUC_Fisher),
       names_to = "AUC_Type",
       values_to = "AUC"
     ) |>
     dplyr::filter(!is.nan(AUC)) |>
-    dplyr::mutate(
-      AUC_Type = gsub("AUC_", "", AUC_Type)
-    )
-  plot_auc <- ggplot(plot_tbl_auc, aes(x = spike_props, y = AUC, color = factor(magnitude_spikes), linetype = AUC_Type)) +
-    geom_line(na.rm=TRUE) +
-    labs(title = "AUC vs Proportion of Spikes",
-        x = "Proportion of Spikes",
-        y = "AUC",
-        color = "Magnitude") + 
+    dplyr::mutate(AUC_Type = gsub("AUC_", "", AUC_Type))
+
+  plot_auc <- ggplot(plot_tbl_auc, aes(
+    x = spike_props, y = AUC,
+    color = factor(magnitude_spikes), linetype = AUC_Type
+  )) +
+    geom_line(na.rm = TRUE) +
+    labs(
+      x = "Proportion of Spikes",
+      y = "AUC",
+      color = "Magnitude"
+    ) +
     cowplot::theme_cowplot() +
     theme(
       plot.background = element_rect(fill = "white", colour = "white"),
       panel.background = element_rect(fill = "white", colour = "white")
     )
-  # Plot Pseudo-cells ratio vs Proportion of Spikes 
+
+  # --- Pseudo-trials ratio (Stimulated) ---
   plot_tbl_pseudo_stim <- results_pseudo |>
     dplyr::filter(method == mtd) |>
+     dplyr::mutate(magnitude_spikes = round(magnitude_spikes, 7)) |>
     dplyr::group_by(spike_props, magnitude_spikes) |>
     dplyr::summarise(PseudoRatioStim = mean(PseudoRatioStim, na.rm = TRUE), .groups = "drop") |>
-    dplyr::ungroup() |>
     dplyr::filter(!is.nan(PseudoRatioStim))
-  max_ratio <- plot_tbl_pseudo_stim$PseudoRatioStim |> max(na.rm = TRUE)
-  max_log <- ceiling(log10(max_ratio))
-  min_ratio <- plot_tbl_pseudo_stim$PseudoRatioStim |> min(na.rm = TRUE)
-  min_log <- floor(log10(min_ratio))
-  break_vec <- seq(min_log, max_log, by = 1)
-  plot_pseudo_stim <- ggplot(plot_tbl_pseudo_stim, aes(x = spike_props, y = PseudoRatioStim, color = factor(magnitude_spikes))) +
-    geom_line(na.rm=TRUE) +
-    labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
-        x = "Proportion of Spikes",
-        y = "Number of Pseudo cells/Real cells",
-        color = "Magnitude") +
+
+  range_log_stim <- range(log10(plot_tbl_pseudo_stim$PseudoRatioStim), na.rm = TRUE)
+  break_vec <- seq(floor(range_log_stim[1]), ceiling(range_log_stim[2]), by = 1)
+
+  plot_pseudo_stim <- ggplot(plot_tbl_pseudo_stim, aes(
+    x = spike_props, y = PseudoRatioStim,
+    color = factor(magnitude_spikes)
+  )) +
+    geom_line(na.rm = TRUE) +
+    labs(
+      x = "Proportion of Spikes",
+      y = "Pseudo cells / Real cells",
+      color = "Magnitude"
+    ) +
     cowplot::theme_cowplot() +
     theme(
       plot.background = element_rect(fill = "white", colour = "white"),
@@ -469,29 +479,30 @@ for (mtd in mtd_vec) {
     scale_y_continuous(
       trans = "log10",
       breaks = 10^break_vec,
-      labels = scales::comma(10^break_vec),
-      limits = c(10^break_vec[1], 10^max(break_vec))
+      labels = scales::comma(10^break_vec)
     )
 
-
-  # Plot Pseudo-cells ratio vs Proportion of Spikes
+  # --- Pseudo-trials ratio (Unstimulated) ---
   plot_tbl_pseudo_uns <- results_pseudo |>
     dplyr::filter(method == mtd) |>
+    dplyr::mutate(magnitude_spikes = round(magnitude_spikes, 7)) |>
     dplyr::group_by(spike_props, magnitude_spikes) |>
     dplyr::summarise(PseudoRatioUnstim = mean(PseudoRatioUnstim, na.rm = TRUE), .groups = "drop") |>
-    dplyr::ungroup() |>
     dplyr::filter(!is.nan(PseudoRatioUnstim))
-  max_ratio_uns <- plot_tbl_pseudo_uns$PseudoRatioUnstim |> max(na.rm = TRUE)
-  max_log_uns <- ceiling(log10(max_ratio_uns))
-  min_ratio_uns <- plot_tbl_pseudo_uns$PseudoRatioUnstim |> min(na.rm = TRUE)
-  min_log_uns <- floor(log10(min_ratio_uns))
-  break_vec_uns <- seq(min_log_uns, max_log_uns, by = 1)
-  plot_pseudo_uns <- ggplot(plot_tbl_pseudo_uns, aes(x = spike_props, y = PseudoRatioUnstim, color = factor(magnitude_spikes))) +
-    geom_line(na.rm=TRUE) +
-    labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
-        x = "Proportion of Spikes",
-        y = "Number of Pseudo cells/Real cells",
-        color = "Magnitude") +
+
+  range_log_uns <- range(log10(plot_tbl_pseudo_uns$PseudoRatioUnstim), na.rm = TRUE)
+  break_vec_uns <- seq(floor(range_log_uns[1]), ceiling(range_log_uns[2]), by = 1)
+
+  plot_pseudo_uns <- ggplot(plot_tbl_pseudo_uns, aes(
+    x = spike_props, y = PseudoRatioUnstim,
+    color = factor(magnitude_spikes)
+  )) +
+    geom_line(na.rm = TRUE) +
+    labs(
+      x = "Proportion of Spikes",
+      y = "Pseudo cells / Real cells",
+      color = "Magnitude"
+    ) +
     cowplot::theme_cowplot() +
     theme(
       plot.background = element_rect(fill = "white", colour = "white"),
@@ -500,14 +511,20 @@ for (mtd in mtd_vec) {
     scale_y_continuous(
       trans = "log10",
       breaks = 10^break_vec_uns,
-      labels = scales::comma(10^break_vec_uns),
-      limits = c(10^break_vec_uns[1], 10^max(break_vec_uns))
+      labels = scales::comma(10^break_vec_uns)
     )
-  # Save
-  ggsave(paste0("plots/plot_noise_", mtd, "_auc.png"), plot = plot_auc, width = 6, height = 4, dpi = 300)
-  ggsave(paste0("plots/plot_noise_", mtd, "_pseudo_stim.png"), plot = plot_pseudo_stim, width = 6, height = 4, dpi = 300)
-  ggsave(paste0("plots/plot_noise_", mtd, "_pseudo_uns.png"), plot = plot_pseudo_uns, width = 6, height = 4, dpi = 300)
+
+  # --- Combine and Save ---
+  combined_plot <- plot_auc + plot_pseudo_stim + plot_pseudo_uns + 
+    plot_layout(ncol = 3, guides = "collect") 
+
+  ggsave(
+    filename = paste0("plots/plot_noise_", mtd, "_combined.png"),
+    plot = combined_plot,
+    width = 18, height = 6, dpi = 300
+  )
 }
+
 ```
 
 Now, we consider spiking in data where some stimulated samples from responders have higher responses than the response.
@@ -671,89 +688,88 @@ estimates the parameters directly), and the AUC plots for the MCMC method
 (as there are fewer failed fits).
 
 ```{r}
+library(patchwork)
+
 for (mtd in mtd_vec) {
-  # Plot  AUC vs Proportion of Spikes
+
+  # ----- AUC plot -----
   plot_tbl_auc_active <- results_auc_active |>
     dplyr::filter(method == mtd) |>
     dplyr::group_by(spike_props, magnitude_spikes) |>
     dplyr::summarise(AUC = mean(AUC, na.rm = TRUE), .groups = "drop") |>
     dplyr::ungroup() |>
     dplyr::filter(!is.nan(AUC)) 
+
   plot_auc_active <- ggplot(plot_tbl_auc_active, aes(x = spike_props, y = AUC, color = factor(magnitude_spikes))) +
     geom_line(na.rm=TRUE) +
-    labs(title = "AUC vs Proportion of Spikes",
-        x = "Proportion of Spikes",
-        y = "AUC",
-        color = "Magnitude") + 
+    labs(x = "Proportion of Spikes", y = "AUC", color = "Magnitude") + 
     cowplot::theme_cowplot() +
-    theme(
-      plot.background = element_rect(fill = "white", colour = "white"),
-      panel.background = element_rect(fill = "white", colour = "white")
-    )
-  # Plot Pseudo-cells ratio vs Proportion of Spikes 
+    theme(plot.background = element_rect(fill = "white", colour = "white"),
+          panel.background = element_rect(fill = "white", colour = "white"))
+
+  # ----- Pseudo-stim plot -----
   plot_tbl_pseudo_stim_active <- results_pseudo_active |>
     dplyr::filter(method == mtd) |>
     dplyr::group_by(spike_props, magnitude_spikes) |>
     dplyr::summarise(PseudoRatioStim = mean(PseudoRatioStim, na.rm = TRUE), .groups = "drop") |>
     dplyr::ungroup() |>
     dplyr::filter(!is.nan(PseudoRatioStim))
-  max_ratio <- plot_tbl_pseudo_stim_active$PseudoRatioStim |> max(na.rm = TRUE)
-  max_log <- ceiling(log10(max_ratio))
-  min_ratio <- plot_tbl_pseudo_stim_active$PseudoRatioStim |> min(na.rm = TRUE)
-  min_log <- floor(log10(min_ratio))
-  break_vec <- seq(min_log, max_log, by = 1)
+
+  max_ratio <- max(plot_tbl_pseudo_stim_active$PseudoRatioStim, na.rm = TRUE)
+  min_ratio <- min(plot_tbl_pseudo_stim_active$PseudoRatioStim, na.rm = TRUE)
+  break_vec <- seq(floor(log10(min_ratio)), ceiling(log10(max_ratio)), by = 1)
+
   plot_pseudo_stim_active <- ggplot(plot_tbl_pseudo_stim_active, aes(x = spike_props, y = PseudoRatioStim, color = factor(magnitude_spikes))) +
     geom_line(na.rm=TRUE) +
-    labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
-        x = "Proportion of Spikes",
-        y = "Number of Pseudo cells/Real cells",
-        color = "Magnitude") +
+    labs(x = "Proportion of Spikes", y = "Number of Pseudo cells/Real cells", color = "Magnitude") +
     cowplot::theme_cowplot() +
-    theme(
-      plot.background = element_rect(fill = "white", colour = "white"),
-      panel.background = element_rect(fill = "white", colour = "white")
-    ) +
-    scale_y_continuous(
-      trans = "log10",
-      breaks = 10^break_vec,
-      labels = scales::comma(10^break_vec),
-      limits = c(10^break_vec[1], 10^max(break_vec))
-    )
+    scale_y_continuous(trans = "log10",
+                       breaks = 10^break_vec,
+                       labels = scales::comma(10^break_vec),
+                       limits = c(10^break_vec[1], 10^max(break_vec))) +
+    theme(plot.background = element_rect(fill = "white", colour = "white"),
+          panel.background = element_rect(fill = "white", colour = "white"))
 
-
-  # Plot Pseudo-cells ratio vs Proportion of Spikes
+  # ----- Pseudo-unstim plot -----
   plot_tbl_pseudo_uns_active <- results_pseudo_active |>
     dplyr::filter(method == mtd) |>
     dplyr::group_by(spike_props, magnitude_spikes) |>
     dplyr::summarise(PseudoRatioUnstim = mean(PseudoRatioUnstim, na.rm = TRUE), .groups = "drop") |>
     dplyr::ungroup() |>
     dplyr::filter(!is.nan(PseudoRatioUnstim))
-  max_ratio_uns <- plot_tbl_pseudo_uns_active$PseudoRatioUnstim |> max(na.rm = TRUE)
-  max_log_uns <- ceiling(log10(max_ratio_uns))
-  min_ratio_uns <- plot_tbl_pseudo_uns_active$PseudoRatioUnstim |> min(na.rm = TRUE)
-  min_log_uns <- floor(log10(min_ratio_uns))
-  break_vec_uns <- seq(min_log_uns, max_log_uns, by = 1)
+
+  max_ratio_uns <- max(plot_tbl_pseudo_uns_active$PseudoRatioUnstim, na.rm = TRUE)
+  min_ratio_uns <- min(plot_tbl_pseudo_uns_active$PseudoRatioUnstim, na.rm = TRUE)
+  break_vec_uns <- seq(floor(log10(min_ratio_uns)), ceiling(log10(max_ratio_uns)), by = 1)
+
   plot_pseudo_uns_active <- ggplot(plot_tbl_pseudo_uns_active, aes(x = spike_props, y = PseudoRatioUnstim, color = factor(magnitude_spikes))) +
     geom_line(na.rm=TRUE) +
-    labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
-        x = "Proportion of Spikes",
-        y = "Number of Pseudo cells/Real cells",
-        color = "Magnitude") +
+    labs(x = "Proportion of Spikes", y = "Number of Pseudo cells/Real cells", color = "Magnitude") +
     cowplot::theme_cowplot() +
-    theme(
-      plot.background = element_rect(fill = "white", colour = "white"),
-      panel.background = element_rect(fill = "white", colour = "white")
-    ) +
-    scale_y_continuous(
-      trans = "log10",
-      breaks = 10^break_vec_uns,
-      labels = scales::comma(10^break_vec_uns),
-      limits = c(10^break_vec_uns[1], 10^max(break_vec_uns))
-    )
-  # Save
-  ggsave(paste0("plots/plot_active_", mtd, "_auc.png"), plot = plot_auc_active, width = 6, height = 4, dpi = 300)
-  ggsave(paste0("plots/plot_active_", mtd, "_pseudo_stim.png"), plot = plot_pseudo_stim_active, width = 6, height = 4, dpi = 300)
-  ggsave(paste0("plots/plot_active_", mtd, "_pseudo_uns.png"), plot = plot_pseudo_uns_active, width = 6, height = 4, dpi = 300)
+    scale_y_continuous(trans = "log10",
+                       breaks = 10^break_vec_uns,
+                       labels = scales::comma(10^break_vec_uns),
+                       limits = c(10^break_vec_uns[1], 10^max(break_vec_uns))) +
+    theme(plot.background = element_rect(fill = "white", colour = "white"),
+          panel.background = element_rect(fill = "white", colour = "white"))
+
+  # ----- Round legend labels -----
+  plot_auc_active <- plot_auc_active + scale_color_discrete(labels = function(x) round(as.numeric(x), 7))
+  plot_pseudo_stim_active <- plot_pseudo_stim_active + scale_color_discrete(labels = function(x) round(as.numeric(x), 7))
+  plot_pseudo_uns_active <- plot_pseudo_uns_active + scale_color_discrete(labels = function(x) round(as.numeric(x), 7))
+
+  # ----- Combine all three plots vertically with shared legend -----
+  combined_active <- plot_auc_active / plot_pseudo_stim_active / plot_pseudo_uns_active +
+    plot_layout(guides = "collect") &
+    theme(legend.position = "bottom",
+          legend.title = element_text(size = 8),
+          legend.text  = element_text(size = 7))
+
+
+
+  # Save combined figure
+  ggsave(paste0("plots/plot_active_combined_", mtd, ".png"),
+         plot = combined_active, width = 18, height = 6, dpi = 300)
 }
 ```
 
@@ -916,93 +932,70 @@ estimates the parameters directly), and the AUC plots for the MCMC method
 (as there are fewer failed fits).
 
 ```{r}
+library(patchwork)
+
+# --- Combine and save the 3 plots into one figure ---
 for (mtd in mtd_vec) {
-  # Plot  AUC vs Proportion of Spikes
+  # Recreate the same data frames used for plotting
   plot_tbl_auc_resting <- results_auc_resting |>
     dplyr::filter(method == mtd) |>
     dplyr::group_by(spike_props, magnitude_spikes) |>
     dplyr::summarise(AUC = mean(AUC, na.rm = TRUE), .groups = "drop") |>
     dplyr::ungroup() |>
-    dplyr::filter(!is.nan(AUC)) 
-  plot_auc_resting <- ggplot(plot_tbl_auc_resting, aes(x = spike_props, y = AUC, color = factor(magnitude_spikes))) +
-    geom_line(na.rm=TRUE) +
-    labs(title = "AUC vs Proportion of Spikes",
-        x = "Proportion of Spikes",
-        y = "AUC",
-        color = "Magnitude") + 
-    cowplot::theme_cowplot() +
-    theme(
-      plot.background = element_rect(fill = "white", colour = "white"),
-      panel.background = element_rect(fill = "white", colour = "white")
-    )
-  # Plot Pseudo-cells ratio vs Proportion of Spikes 
+    dplyr::filter(!is.nan(AUC))
+  
   plot_tbl_pseudo_stim_resting <- results_pseudo_resting |>
     dplyr::filter(method == mtd) |>
     dplyr::group_by(spike_props, magnitude_spikes) |>
     dplyr::summarise(PseudoRatioStim = mean(PseudoRatioStim, na.rm = TRUE), .groups = "drop") |>
     dplyr::ungroup() |>
     dplyr::filter(!is.nan(PseudoRatioStim))
-  max_ratio <- plot_tbl_pseudo_stim_resting$PseudoRatioStim |> max(na.rm = TRUE)
-  max_log <- ceiling(log10(max_ratio))
-  min_ratio <- plot_tbl_pseudo_stim_resting$PseudoRatioStim |> min(na.rm = TRUE)
-  min_log <- floor(log10(min_ratio))
-  break_vec <- seq(min_log, max_log, by = 1)
-  plot_pseudo_stim_resting <- ggplot(plot_tbl_pseudo_stim_resting, aes(x = spike_props, y = PseudoRatioStim, color = factor(magnitude_spikes))) +
-    geom_line(na.rm=TRUE) +
-    labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
-        x = "Proportion of Spikes",
-        y = "Number of Pseudo cells/Real cells",
-        color = "Magnitude") +
-    cowplot::theme_cowplot() +
-    theme(
-      plot.background = element_rect(fill = "white", colour = "white"),
-      panel.background = element_rect(fill = "white", colour = "white")
-    ) +
-    scale_y_continuous(
-      trans = "log10",
-      breaks = 10^break_vec,
-      labels = scales::comma(10^break_vec),
-      limits = c(10^break_vec[1], 10^max(break_vec))
-    )
-
-
-  # Plot Pseudo-cells ratio vs Proportion of Spikes
+  
   plot_tbl_pseudo_uns_resting <- results_pseudo_resting |>
     dplyr::filter(method == mtd) |>
     dplyr::group_by(spike_props, magnitude_spikes) |>
     dplyr::summarise(PseudoRatioUnstim = mean(PseudoRatioUnstim, na.rm = TRUE), .groups = "drop") |>
     dplyr::ungroup() |>
     dplyr::filter(!is.nan(PseudoRatioUnstim))
-  max_ratio_uns <- plot_tbl_pseudo_uns_resting$PseudoRatioUnstim |> max(na.rm = TRUE)
-  max_log_uns <- ceiling(log10(max_ratio_uns))
-  min_ratio_uns <- plot_tbl_pseudo_uns_resting$PseudoRatioUnstim |> min(na.rm = TRUE)
-  min_log_uns <- floor(log10(min_ratio_uns))
-  break_vec_uns <- seq(min_log_uns, max_log_uns, by = 1)
-  plot_pseudo_uns_resting <- ggplot(plot_tbl_pseudo_uns_resting, aes(x = spike_props, y = PseudoRatioUnstim, color = factor(magnitude_spikes))) +
-    geom_line(na.rm=TRUE) +
-    labs(title = "Pseudo-trials ratio vs Proportion of Spikes",
-        x = "Proportion of Spikes",
-        y = "Number of Pseudo cells/Real cells",
-        color = "Magnitude") +
+
+  # Round magnitudes to 7 decimals for a clean legend
+  plot_tbl_auc_resting$magnitude_spikes <- round(plot_tbl_auc_resting$magnitude_spikes, 7)
+  plot_tbl_pseudo_stim_resting$magnitude_spikes <- round(plot_tbl_pseudo_stim_resting$magnitude_spikes, 7)
+  plot_tbl_pseudo_uns_resting$magnitude_spikes <- round(plot_tbl_pseudo_uns_resting$magnitude_spikes, 7)
+
+  # Recreate the three simplified plots (no titles)
+  p1 <- ggplot(plot_tbl_auc_resting, aes(x = spike_props, y = AUC, color = factor(magnitude_spikes))) +
+    geom_line(na.rm = TRUE) +
+    labs(x = "Proportion of Spikes", y = "AUC", color = "Magnitude") +
     cowplot::theme_cowplot() +
-    theme(
-      plot.background = element_rect(fill = "white", colour = "white"),
-      panel.background = element_rect(fill = "white", colour = "white")
-    ) +
-    scale_y_continuous(
-      trans = "log10",
-      breaks = 10^break_vec_uns,
-      labels = scales::comma(10^break_vec_uns),
-      limits = c(10^break_vec_uns[1], 10^max(break_vec_uns))
-    )
-  # Save
+    theme(plot.title = element_blank())
+
+  p2 <- ggplot(plot_tbl_pseudo_stim_resting, aes(x = spike_props, y = PseudoRatioStim, color = factor(magnitude_spikes))) +
+    geom_line(na.rm = TRUE) +
+    labs(x = "Proportion of Spikes", y = "Pseudo/Real Cells", color = "Magnitude") +
+    cowplot::theme_cowplot() +
+    theme(plot.title = element_blank()) +
+    scale_y_continuous(trans = "log10", labels = scales::comma)
+
+  p3 <- ggplot(plot_tbl_pseudo_uns_resting, aes(x = spike_props, y = PseudoRatioUnstim, color = factor(magnitude_spikes))) +
+    geom_line(na.rm = TRUE) +
+    labs(x = "Proportion of Spikes", y = "Pseudo/Real Cells", color = "Magnitude") +
+    cowplot::theme_cowplot() +
+    theme(plot.title = element_blank()) +
+    scale_y_continuous(trans = "log10", labels = scales::comma)
+
+  # Combine all plots with shared legend
+  combined_plot <- patchwork::wrap_plots(p1, p2, p3, nrow = 1, guides = "collect") &
+    theme(legend.position = "bottom",
+          legend.title = element_text(size = 9),
+          legend.text = element_text(size = 8))
+
+  # Save combined figure
   ggsave(
-    paste0("plots/plot_resting_", mtd, "_auc.png"),
-    plot = plot_auc_resting,
-    width = 6, height = 4, dpi = 300
-    )
-  ggsave(paste0("plots/plot_resting_", mtd, "_pseudo_stim.png"), plot = plot_pseudo_stim_resting, width = 6, height = 4, dpi = 300)
-  ggsave(paste0("plots/plot_resting_", mtd, "_pseudo_uns.png"), plot = plot_pseudo_uns_resting, width = 6, height = 4, dpi = 300)
+    paste0("plots/plot_resting_combined_", mtd, ".png"),
+    plot = combined_plot,
+    width = 18, height = 6, dpi = 300
+  )
 }
 ```
 
