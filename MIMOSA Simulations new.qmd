@@ -306,63 +306,96 @@ for (mtd in mtd_vec) {
           data_all[rep_ind, "NSUB"] <- N - data_all[["CYTNUM"]][rep_ind]
         }
         
-        # Fit MIMOSA
+        # Fit MIMOSA 
         E <- prepare_for_mimosa(data_all)
-        cat("Prepared for MIMOSA, first few rows:\n")
-        print(table(E@phenoData$responder_status))
-
-        fit <- tryCatch(
-        fit_MIMOSA(E, mtd = "EM"),
-        error = function(e) NULL,
-        warning = function(w) NULL
-      )
-      
-        
-        mimosa_obj <- fit$IL2
-        res <- mimosa_obj@result
-        
-        # Extract parameters
-        stim_vec_par <- res@par.stim
-        uns_vec_par  <- res@par.unstim
-        beta_stim <- stim_vec_par[1]
-        alpha_stim <- stim_vec_par[2]
-        pseudo_ratio_stim <- (alpha_stim + beta_stim - 2) / N
-        beta_uns <- uns_vec_par[1]
-        alpha_uns <- uns_vec_par[2]
-        pseudo_ratio_uns <- (alpha_uns + beta_uns - 2) / N
-        
-        # Posterior probability matrix
-        prob_mat <- res@z
-        rn_vec <- rownames(prob_mat)
-        rn_vec <- gsub("Treatment_Subject_", "", rn_vec)
-        rn_vec <- gsub("_IL2.*", "", rn_vec)
-        rn_vec <- as.numeric(rn_vec)
-        
-        # Compute ROC and Fisher AUC
-        roc_obj <- roc(
-          response = responder_all[rn_vec],
-          predictor = prob_mat[, 2],
-          direction = "<"
-        )
-        auc_val <- as.numeric(roc_obj$auc)
-        auc_fisher <- fishers_auc(.data = data_all, status = responder_all, alternative = "less")
-        
-        # Save results
-        results_auc <- rbind(results_auc, 
-                             data.frame(spike_props = spike,
-                                        magnitude_spikes = magnitude,
-                                        AUC_MIMOSA = auc_val,
-                                        AUC_Fisher = auc_fisher,
-                                        method = mtd,
-                                        run = run))
-        results_pseudo <- rbind(results_pseudo,
-                                 data.frame(spike_props = spike,
+        fit <- try(fit_MIMOSA(E, mtd = mtd), silent = TRUE)
+        if (inherits(fit, "try-error")) {
+          results_auc <- rbind(results_auc, 
+                              data.frame(spike_props = spike,
+                                          magnitude_spikes = magnitude,
+                                          AUC = NA_real_,
+                                          AUC_Fisher = NA_real_,
+                                          method = mtd,
+                                          run = run)
+          )
+          results_pseudo <- rbind(results_pseudo,
+                                  data.frame(spike_props = spike,
                                             magnitude_spikes = magnitude,
-                                            PseudoRatioStim = pseudo_ratio_stim,
-                                            PseudoRatioUnstim = pseudo_ratio_uns,
+                                            PseudoRatioStim = NA_real_,
+                                            PseudoRatioUnstim = NA_real_,
                                             method = mtd,
                                             run = run))
-        
+          rm(fit, mimosa_obj, res, E, data_all)
+          gc()
+          next
+        }
+        mimosa_obj <- fit$IL2
+        res <- mimosa_obj@result
+        em_failure <- mtd == "EM" && "params" %in% slotNames(res)
+        if (em_failure) {
+          beta_stim <- NA
+          alpha_stim <- NA
+          pseudo_ratio_stim <- NA
+          beta_uns <- NA
+          alpha_uns <- NA
+          pseudo_ratio_uns <- NA
+        } else if (mtd == "mcmc") {
+          param_values <- res@params
+          alpha_stim <- param_values[2, "alphas.1"]
+          beta_stim  <- param_values[2, "alphas.0"]
+          # Pseudo-trials ratio 
+          pseudo_ratio_stim <- (alpha_stim + beta_stim - 2) / N
+          # Pseudo-trials ratio 
+          alpha_uns <- param_values[2, "alphau.1"]
+          beta_uns  <- param_values[2, "alphau.0"]
+          pseudo_ratio_uns <- (alpha_uns + beta_uns - 2) / N
+        } else if (mtd == "EM") {
+          stim_vec_par <- res@par.stim
+          beta_stim <- stim_vec_par[1]
+          alpha_stim <- stim_vec_par[2]
+          pseudo_ratio_stim <- (alpha_stim + beta_stim - 2) / N
+          uns_vec_par <- res@par.unstim
+          beta_uns <- uns_vec_par[1]
+          alpha_uns <- uns_vec_par[2]
+          pseudo_ratio_uns <- (alpha_uns + beta_uns - 2) / N
+        }
+        # Get posterior probability that each sample is a responder
+        prob_mat <- res@z
+        if (!em_failure) {
+          rn_vec <- rownames(prob_mat)
+          rn_vec <- gsub("Treatment_Subject_", "", rn_vec)
+          rn_vec <- gsub("_IL2.*", "", rn_vec)
+          rn_vec <- as.numeric(rn_vec)
+          roc_obj <- roc(
+            response = responder_all[rn_vec],
+            predictor = prob_mat[, "z2"],
+            direction = "<"
+          )
+          auc_val <- as.numeric(roc_obj$auc)
+          # get fisher's AUC now, too
+          auc_fisher <- fishers_auc(
+            .data = data_all, status = responder_all
+          )
+        } else {
+          auc_val <- NA
+          auc_fisher <- NA
+        }
+        # Save results
+        results_aucve <- rbind(results_auc, 
+                            data.frame(spike_props = spike,
+                                        magnitude_spikes = magnitude,
+                                        AUC = auc_val,
+                                        AUC_Fisher = auc_fisher,
+                                        method = mtd,
+                                        run = run)
+        )
+        results_pseudo <- rbind(results_pseudo,
+                                data.frame(spike_props = spike,
+                                          magnitude_spikes = magnitude,
+                                          PseudoRatioStim = pseudo_ratio_stim,
+                                          PseudoRatioUnstim = pseudo_ratio_uns,
+                                          method = mtd,
+                                          run = run))
         rm(fit, mimosa_obj, res, E, data_all)
         gc()
       }
